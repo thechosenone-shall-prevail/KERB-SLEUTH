@@ -41,6 +41,13 @@ sigma_rules.yml
 test_results.json
 *.log
 
+# Hash cracking outputs
+hashes/
+results/
+*.pot
+*.hashes
+*.txt
+
 # Test outputs
 test-output/
 test_output/

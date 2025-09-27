@@ -31,7 +31,7 @@ func ConnectLDAP(target, bindUser, bindPass string, useSSL bool) (*LDAPClient, e
 		if !strings.Contains(target, ":") {
 			target = fmt.Sprintf("%s:%d", target, port)
 		}
-		
+
 		tlsConfig := &tls.Config{
 			InsecureSkipVerify: true, // For testing - should be configurable in production
 		}
@@ -105,13 +105,13 @@ func ConnectToTarget(target string) (*LDAPClient, error) {
 
 	for _, method := range connectionMethods {
 		log.Printf("Trying %s connection to %s", method.name, method.target)
-		
+
 		client, err := ConnectLDAP(method.target, method.bindUser, method.bindPass, method.useSSL)
 		if err != nil {
 			log.Printf("%s failed: %v", method.name, err)
 			continue
 		}
-		
+
 		log.Printf("Successfully connected using %s", method.name)
 		return client, nil
 	}
@@ -122,11 +122,11 @@ func ConnectToTarget(target string) (*LDAPClient, error) {
 // EnumerateUsers performs live user enumeration
 func (c *LDAPClient) EnumerateUsers() ([]ingest.User, error) {
 	log.Println("Enumerating users...")
-	
+
 	searchFilter := "(&(objectCategory=person)(objectClass=user))"
 	attributes := []string{
 		"sAMAccountName",
-		"distinguishedName", 
+		"distinguishedName",
 		"userAccountControl",
 		"servicePrincipalName",
 		"pwdLastSet",
@@ -218,9 +218,9 @@ func (c *LDAPClient) GetDomainInfo() (*DomainInfo, error) {
 
 	entry := sr.Entries[0]
 	info := &DomainInfo{
-		BaseDN:       c.baseDN,
-		DNSHostName:  entry.GetAttributeValue("dnsHostName"),
-		LDAPService:  entry.GetAttributeValue("ldapServiceName"),
+		BaseDN:      c.baseDN,
+		DNSHostName: entry.GetAttributeValue("dnsHostName"),
+		LDAPService: entry.GetAttributeValue("ldapServiceName"),
 	}
 
 	// Extract domain name from base DN
@@ -266,7 +266,7 @@ func parseWindowsTimestamp(timestamp string) time.Time {
 	if timestamp == "" || timestamp == "0" {
 		return time.Time{}
 	}
-	
+
 	// Windows timestamp is 100-nanosecond intervals since 1601-01-01
 	if ts, err := strconv.ParseInt(timestamp, 10, 64); err == nil {
 		// Convert to Unix timestamp
