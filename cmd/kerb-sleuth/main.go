@@ -7,12 +7,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/yourusername/kerb-sleuth/pkg/cracker"
-	"github.com/yourusername/kerb-sleuth/pkg/ingest"
-	"github.com/yourusername/kerb-sleuth/pkg/krb"
-	"github.com/yourusername/kerb-sleuth/pkg/output"
-	"github.com/yourusername/kerb-sleuth/pkg/triage"
-	"github.com/yourusername/kerb-sleuth/pkg/util"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/cracker"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/krb"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/output"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/triage"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/util"
 	"gopkg.in/yaml.v3"
 )
 
