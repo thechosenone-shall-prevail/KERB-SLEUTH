@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/cracker"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/output"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/triage"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/util"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/cracker"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/krb"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/output"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/triage"
+	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -114,7 +114,7 @@ func printUsage() {
 	fmt.Println()
 	fmt.Printf("  %sWARNING:%s Only use on authorized targets. Misuse is illegal and unethical.\n", util.Red, util.Reset)
 	fmt.Println()
-	fmt.Printf("  Need help? Visit: %shttps://github.com/thechosenone-shall-prevail/KERB-SLEUTH%s\n", util.Blue, util.Reset)
+	fmt.Printf("  Need help? Visit: %shttps://github.com/thechosenone-shall-prevail/kerb-sleuth%s\n", util.Blue, util.Reset)
 }
 
 func runHunt() {

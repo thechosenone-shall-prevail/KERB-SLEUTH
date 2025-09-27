@@ -1,4 +1,4 @@
-module github.com/thechosenone-shall-prevail/KERB-SLEUTH
+module github.com/thechosenone-shall-prevail/kerb-sleuth
 
 go 1.23.0
 
