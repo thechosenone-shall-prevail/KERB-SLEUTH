@@ -117,9 +117,34 @@ cd KERB-SLEUTH
 make build
 ```
 
-### 🐳 **Docker (Coming Soon)**
+### 🏁 **Kali Linux (Automated)**
 ```bash
-docker run --rm -v $(pwd):/data thechosenone-shall-prevail/kerb-sleuth scan --ad /data/users.csv
+# One-liner install
+curl -sSL https://raw.githubusercontent.com/thechosenone-shall-prevail/KERB-SLEUTH/main/quick-install.sh | bash
+
+# Full installation with dependencies
+git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
+cd KERB-SLEUTH
+chmod +x install-kali.sh
+./install-kali.sh
+```
+
+### 🐳 **Docker**
+```bash
+# Build and run with Docker
+git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
+cd KERB-SLEUTH
+./install-docker.sh
+
+# Quick run
+./run-docker.sh scan --ad /data/users.csv
+
+# Shell access
+./docker-shell.sh
+
+# Docker Compose
+docker-compose up -d
+docker-compose exec kerb-sleuth ./kerb-sleuth --help
 ```
 
 ---
@@ -341,6 +366,20 @@ make docker-build
 
 # Run in container
 make docker-run
+```
+
+### 🚀 **Release Preparation**
+```bash
+# Automated release preparation
+./prepare-release.sh
+
+# Manual steps:
+# 1. Update version in go.mod
+# 2. Run tests: make test
+# 3. Build binaries: make build-all
+# 4. Create git tag: git tag v1.0.0
+# 5. Push to GitHub: git push origin v1.0.0
+# 6. Create GitHub release with binaries
 ```
 
 ---
