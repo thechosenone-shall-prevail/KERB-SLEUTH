@@ -1,0 +1,29 @@
+[
+  {
+    "EventID": 4768,
+    "TimeGenerated": "2024-01-15T10:30:00Z",
+    "AccountName": "backupsvc",
+    "ServiceName": "krbtgt",
+    "PreAuthType": 0,
+    "Result": "0x0",
+    "ClientAddress": "192.168.1.100"
+  },
+  {
+    "EventID": 4769,
+    "TimeGenerated": "2024-01-15T10:35:00Z",
+    "AccountName": "sqlsvc",
+    "ServiceName": "MSSQLSvc/sql01.corp.local:1433",
+    "TicketOptions": "0x40810000",
+    "Result": "0x0",
+    "ClientAddress": "192.168.1.101"
+  },
+  {
+    "EventID": 4768,
+    "TimeGenerated": "2024-01-15T10:40:00Z",
+    "AccountName": "adminuser",
+    "ServiceName": "krbtgt",
+    "PreAuthType": 0,
+    "Result": "0x0",
+    "ClientAddress": "192.168.1.102"
+  }
+]
