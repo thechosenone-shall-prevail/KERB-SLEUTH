@@ -1,9 +1,2 @@
-sAMAccountName,distinguishedName,DoesNotRequirePreAuth,userAccountControl,servicePrincipalName,pwdLastSet,lastLogon,memberOf
-alice,CN=alice;OU=Users;DC=corp;DC=local,False,512,,,1622505600,1625097600,
-bob,CN=bob;OU=Users;DC=corp;DC=local,False,512,,,1622505600,1625097600,CN=Domain Users
-backupsvc,CN=backupsvc;OU=Service Accounts;DC=corp;DC=local,True,4260352,,,1590969600,1625097600,CN=Backup Operators
-sqlsvc,CN=sqlsvc;OU=Service Accounts;DC=corp;DC=local,False,512,MSSQLSvc/sql01.corp.local:1433;MSSQLSvc/sql01.corp.local,1590969600,1625097600,CN=DBAdmins
-websvc,CN=websvc;OU=Service Accounts;DC=corp;DC=local,False,512,HTTP/web01.corp.local;HTTP/web01.corp.local:80,1622505600,1625097600,
-adminuser,CN=adminuser;OU=Users;DC=corp;DC=local,True,4260352,,,1590969600,1625097600,CN=Domain Admins;CN=Enterprise Admins
-machine01$,CN=machine01;OU=Computers;DC=corp;DC=local,False,4096,HOST/machine01.corp.local,,1625097600,
-disableduser,CN=disableduser;OU=Users;DC=corp;DC=local,False,514,,,1622505600,0,
+samAccountName,distinguishedName,doesNotRequirePreAuth,userAccountControl
+testuser,CN=testuser,OU=Users,DC=corp,DC=local,true,512
