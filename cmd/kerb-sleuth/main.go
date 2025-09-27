@@ -312,6 +312,19 @@ func isValidTarget(target string) bool {
 		return false
 	}
 
+	// Exclude known commands
+	knownCommands := []string{"hunt", "scan", "analyze", "simulate", "version", "help", "--help", "-h"}
+	for _, cmd := range knownCommands {
+		if target == cmd {
+			return false
+		}
+	}
+
+	// Check if it starts with a flag
+	if strings.HasPrefix(target, "-") {
+		return false
+	}
+
 	hasLetter := false
 	for _, r := range target {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
@@ -322,8 +335,16 @@ func isValidTarget(target string) bool {
 
 	hasDigit := strings.ContainsAny(target, "0123456789")
 
-	// Simple heuristic: if it has letters/numbers and optionally dots, it's likely a target
-	return (hasLetter || hasDigit) && !strings.HasPrefix(target, "-")
+	// Valid targets should look like IP addresses or hostnames
+	// IP pattern: contains only digits, dots, and maybe colons (for IPv6)
+	// Hostname pattern: contains letters and possibly digits, dots, hyphens
+	if strings.Contains(target, ".") && (hasDigit || hasLetter) {
+		// Could be IP (192.168.1.1) or FQDN (dc01.corp.local)
+		return true
+	}
+
+	// Could be hostname (dc01) or IP (192168001001 format)
+	return hasLetter || hasDigit
 }
 
 // extractAndCrackHashes extracts real Kerberos hashes and runs cracking tools
