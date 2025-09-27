@@ -3,8 +3,9 @@
 # Quick Install Script for KERB-SLEUTH
 # One-liner installation for Kali Linux
 
-# Colors
-RED='\033[0;31m'
+# Colors (bright + normal reds to emulate BrightRed + DarkRed)
+BRIGHT_RED='\033[1;31m'
+DARK_RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
