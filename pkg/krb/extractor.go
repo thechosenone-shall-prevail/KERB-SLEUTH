@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yourusername/kerb-sleuth/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 )
 
 type Candidate struct {
@@ -16,6 +16,8 @@ type Candidate struct {
 	PwdLastSet     time.Time
 	MemberOf       []string
 	ExportHashPath string
+	Hash           string // Actual extracted hash
+	Domain         string // Domain name
 }
 
 func FindASREPCandidates(users []ingest.User) []Candidate {

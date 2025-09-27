@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/yourusername/kerb-sleuth/pkg/krb"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 )
 
 func TestWriteJSON(t *testing.T) {

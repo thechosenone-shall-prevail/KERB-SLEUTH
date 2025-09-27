@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yourusername/kerb-sleuth/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 )
 
 func TestFindASREPCandidates(t *testing.T) {
