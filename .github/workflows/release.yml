@@ -1,0 +1,159 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: KERB-SLEUTH ${{ github.ref_name }}
+        body: |
+          ## 🎯 KERB-SLEUTH Release ${{ github.ref_name }}
+          
+          ### 🚀 Installation
+          
+          **Kali Linux (Recommended):**
+          ```bash
+          curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/quick-install.sh | bash
+          ```
+          
+          **Manual Download:**
+          Download the appropriate binary for your platform from the assets below.
+          
+          **Docker:**
+          ```bash
+          git clone https://github.com/${{ github.repository }}.git
+          cd KERB-SLEUTH
+          ./install-docker.sh
+          ```
+          
+          ### 🔍 Usage
+          ```bash
+          kerb-sleuth --help
+          kerb-sleuth analyze /path/to/tickets.kirbi
+          kerb-sleuth simulate --dataset large
+          ```
+          
+          ### ⚠️ Legal Notice
+          This tool is for **AUTHORIZED** security assessments only!
+          
+          ---
+          **🩸 Happy hunting! 💀**
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+
+  build-and-upload:
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+    
+    - name: Get dependencies
+      run: go mod download
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Run vet
+      run: go vet ./...
+    
+    - name: Build and Package
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        VERSION=${{ github.ref_name }}
+        BINARY_NAME="kerb-sleuth"
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          BINARY_NAME="${BINARY_NAME}.exe"
+        fi
+        
+        # Create output directory
+        OUTPUT_DIR="kerb-sleuth-${VERSION}-${{ matrix.goos }}-${{ matrix.goarch }}"
+        mkdir -p "${OUTPUT_DIR}"
+        
+        # Build binary
+        go build -ldflags "-s -w -X main.version=${VERSION}" -o "${OUTPUT_DIR}/${BINARY_NAME}" ./cmd/kerb-sleuth
+        
+        # Copy additional files
+        cp README.md "${OUTPUT_DIR}/"
+        cp LICENSE "${OUTPUT_DIR}/"
+        cp -r configs "${OUTPUT_DIR}/"
+        if [ -d "tests/sample_data" ]; then
+          cp -r tests/sample_data "${OUTPUT_DIR}/sample_data"
+        fi
+        
+        # Create archive
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          zip -r "${OUTPUT_DIR}.zip" "${OUTPUT_DIR}/"
+          echo "ASSET_PATH=${OUTPUT_DIR}.zip" >> $GITHUB_ENV
+        else
+          tar -czf "${OUTPUT_DIR}.tar.gz" "${OUTPUT_DIR}/"
+          echo "ASSET_PATH=${OUTPUT_DIR}.tar.gz" >> $GITHUB_ENV
+        fi
+    
+    - name: Upload Release Asset
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ${{ env.ASSET_PATH }}
+        
+  create-checksums:
+    runs-on: ubuntu-latest
+    needs: [create-release, build-and-upload]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+    
+    - name: Create checksums
+      run: |
+        cd artifacts
+        find . -name "*.tar.gz" -o -name "*.zip" | xargs sha256sum > ../checksums.txt
+        cd ..
+    
+    - name: Upload checksums
+      uses: softprops/action-gh-release@v2
+      with:
+        files: checksums.txt
