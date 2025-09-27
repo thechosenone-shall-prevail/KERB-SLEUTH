@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/krb"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 )
 
 type Config struct {

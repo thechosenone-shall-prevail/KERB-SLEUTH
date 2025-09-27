@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 )
 
 type Candidate struct {

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/thechosenone-shall-prevail/kerb-sleuth/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 )
 
 // HashResult contains extracted Kerberos hashes
