@@ -90,7 +90,6 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Printf("%s\n", util.GetRandomBanner())
 	fmt.Printf("KERB-SLEUTH v%s - Advanced Kerberos Security Assessment Tool\n\n", version)
 	fmt.Println("USAGE:")
 	fmt.Println("    kerb-sleuth <target-ip-or-hostname>")
