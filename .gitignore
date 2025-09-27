@@ -41,6 +41,10 @@ sigma_rules.yml
 test_results.json
 *.log
 
+# Test outputs
+test-output/
+test_output/
+
 # Temporary files
 tmp/
 temp/
