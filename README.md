@@ -41,26 +41,48 @@
 ### 🔍 **Core Capabilities**
 - 🛡️ **AS-REP Roasting Detection** - Identifies accounts with pre-authentication disabled
 - ⚡ **Kerberoasting Detection** - Finds accounts with Service Principal Names (SPNs)
+- 🌐 **Live LDAP Enumeration** - Real-time Active Directory reconnaissance via LDAP/LDAPS
+- 🎯 **Direct Target Input** - Simple `kerb-sleuth <IP/hostname>` interface
 - 📊 **Intelligent Scoring System** - Configurable heuristics for risk assessment
-- 🎨 **Beautiful ASCII Banners** - Random bloody Windows logo displays (msfconsole style)
+- 🔑 **Real Hash Extraction** - Extracts actual AS-REP and Kerberoast hashes from live targets
+
+### 🔨 **Advanced Hash Cracking**
+- 🔓 **Automated Hash Export** - Separate `.txt` files for each attack type
+- ⚡ **Hashcat Integration** - Automatic cracking with modes 18200 (AS-REP) and 13100 (Kerberoast)
+- 🔧 **John the Ripper Support** - Alternative cracking engine with format detection
+- 📋 **Wordlist Detection** - Smart fallback to common wordlist locations
+- 🏆 **Result Tracking** - `.pot` files with cracked password display
+- 📖 **Cracking Guide Generation** - Manual command reference for offline cracking
 
 ### 💾 **Data Processing**
-- 📁 **Multiple Input Formats** - CSV, LDIF, JSON support
-- 🌐 **Offline-First Design** - Operates primarily on exported AD data
-- 📈 **Smart Parsing** - Handles various AD export formats automatically
-- 🔄 **Synthetic Data Generator** - Built-in test data creation
+- 📁 **Multiple Input Formats** - CSV, LDIF, JSON support for offline analysis
+- 🌐 **Live & Offline Modes** - Direct LDAP enumeration or file-based analysis
+- 📈 **Smart LDAP Parsing** - Automatic domain detection and user enumeration
+- 🔄 **Synthetic Data Generator** - Built-in test data creation for testing
+- 🔐 **Anonymous & Authenticated** - Supports both anonymous and credentialed LDAP access
 
 ### 📤 **Output Formats**
-- 📋 **JSON Reports** - Detailed results with scoring and reasons
-- 📊 **CSV Summaries** - Simplified tabular format for reporting
+- 📋 **JSON Reports** - Detailed results with scoring and comprehensive metadata
+- 📊 **CSV Summaries** - Simplified tabular format for executive reporting
 - 🚨 **Sigma Rules** - Generated detection rules for SIEM integration
-- 🔓 **Hash Export** - Optional hash extraction for authorized cracking
+- 🔓 **Hash Files** - `asrep_hashes.txt` and `kerberoast_hashes.txt` for cracking tools
+- 📝 **Cracking Logs** - Detailed progress tracking in `results/crack_*.log`
+- 🎯 **Visual Banners** - Randomized ASCII art for professional presentation
 
-### 🛡️ **Security Features**
-- 🔒 **Safe by Default** - Requires explicit authorization for sensitive operations
-- 📝 **Comprehensive Logging** - Detailed audit trails
-- ⚡ **Single Binary** - Easy deployment with minimal dependencies
-- 🎯 **Production Ready** - Robust error handling and validation
+### 🛡️ **Security & Safety Features**
+- 🔒 **Authorization Required** - `--i-am-authorized` flag prevents accidental misuse
+- 📝 **Comprehensive Logging** - Detailed audit trails with emoji-enhanced output
+- ⚡ **Single Binary** - Zero external dependencies for core functionality  
+- 🎯 **Production Ready** - Robust error handling, connection retry, and validation
+- 🔐 **SSL/TLS Support** - LDAPS connections with `--ssl` flag
+- 🚨 **Legal Warnings** - Built-in reminders for authorized use only
+
+### 🚀 **Deployment & Integration**
+- 🐧 **Kali Linux Ready** - Pre-configured installation scripts
+- 🐳 **Docker Support** - Containerized deployment options
+- 🔄 **CI/CD Integration** - GitHub Actions with automated testing
+- 📦 **Easy Installation** - `make install` for system-wide deployment
+- 🎮 **Simple Interface** - Intuitive command structure for rapid deployment
 
 ---
 
@@ -493,17 +515,6 @@ kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 - **🔓 Complete:** Finds vulnerabilities AND exploits them
 - **📊 Professional:** Clean outputs ready for reporting
 
----
-
-## 🎨 **BANNER GALLERY**
-
-Kerb-Sleuth features multiple random ASCII art banners that display on startup, similar to Metasploit's msfconsole:
-
-- 🩸 **Bleeding Windows Logo** - Realistic Windows logo with blood dripping effects
-- 💀 **Skull & Crossbones** - Classic hacker aesthetic with blood-red styling  
-- 🌀 **Matrix Style** - Green matrix rain with Kerberos branding
-- 🔥 **Cyber Aesthetic** - Modern cyberpunk design with neon colors
-- ⚡ **Minimalist Hacker** - Clean, professional penetration testing look
 
 ---
 
@@ -573,7 +584,7 @@ Platforms: Windows, Linux, macOS, ARM64
 - 📚 **Documentation**: Check the [Wiki](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/wiki)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/discussions)  
 - 🐛 **Issues**: [Bug Reports](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/issues)
-- 📧 **Email**: security@[domain] (for security issues only)
+- 📧 **Email**: ss1812@srmist.edu.in[domain] (for security issues only)
 
 ---
 
