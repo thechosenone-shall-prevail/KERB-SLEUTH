@@ -36,59 +36,58 @@
 
 ---
 
-## 🎯 **FEATURES**
+##  **FEATURES**
 
-### 🔍 **Core Capabilities**
-- 🛡️ **AS-REP Roasting Detection** - Identifies accounts with pre-authentication disabled
-- ⚡ **Kerberoasting Detection** - Finds accounts with Service Principal Names (SPNs)
-- 🌐 **Live LDAP Enumeration** - Real-time Active Directory reconnaissance via LDAP/LDAPS
-- 🎯 **Direct Target Input** - Simple `kerb-sleuth <IP/hostname>` interface
-- 📊 **Intelligent Scoring System** - Configurable heuristics for risk assessment
-- 🔑 **Real Hash Extraction** - Extracts actual AS-REP and Kerberoast hashes from live targets
+###  **Core Capabilities**
+-  **AS-REP Roasting Detection** - Identifies accounts with pre-authentication disabled
+-  **Kerberoasting Detection** - Finds accounts with Service Principal Names (SPNs)
+-  **Live LDAP Enumeration** - Real-time Active Directory reconnaissance via LDAP/LDAPS
+-  **Direct Target Input** - Simple `kerb-sleuth <IP/hostname>` interface
+-  **Intelligent Scoring System** - Configurable heuristics for risk assessment
+-  **Real Hash Extraction** - Extracts actual AS-REP and Kerberoast hashes from live targets
 
-### 🔨 **Advanced Hash Cracking**
-- 🔓 **Automated Hash Export** - Separate `.txt` files for each attack type
-- ⚡ **Hashcat Integration** - Automatic cracking with modes 18200 (AS-REP) and 13100 (Kerberoast)
-- 🔧 **John the Ripper Support** - Alternative cracking engine with format detection
-- 📋 **Wordlist Detection** - Smart fallback to common wordlist locations
-- 🏆 **Result Tracking** - `.pot` files with cracked password display
-- 📖 **Cracking Guide Generation** - Manual command reference for offline cracking
+###  **Advanced Hash Cracking**
+-  **Automated Hash Export** - Separate `.txt` files for each attack type
+-  **Hashcat Integration** - Automatic cracking with modes 18200 (AS-REP) and 13100 (Kerberoast)
+-  **John the Ripper Support** - Alternative cracking engine with format detection
+-  **Wordlist Detection** - Smart fallback to common wordlist locations
+-  **Result Tracking** - `.pot` files with cracked password display
+-  **Cracking Guide Generation** - Manual command reference for offline cracking
 
-### 💾 **Data Processing**
-- 📁 **Multiple Input Formats** - CSV, LDIF, JSON support for offline analysis
-- 🌐 **Live & Offline Modes** - Direct LDAP enumeration or file-based analysis
-- 📈 **Smart LDAP Parsing** - Automatic domain detection and user enumeration
-- 🔄 **Synthetic Data Generator** - Built-in test data creation for testing
-- 🔐 **Anonymous & Authenticated** - Supports both anonymous and credentialed LDAP access
+###  **Data Processing**
+-  **Multiple Input Formats** - CSV, LDIF, JSON support for offline analysis
+-  **Live & Offline Modes** - Direct LDAP enumeration or file-based analysis
+-  **Smart LDAP Parsing** - Automatic domain detection and user enumeration
+-  **Synthetic Data Generator** - Built-in test data creation for testing
+-  **Anonymous & Authenticated** - Supports both anonymous and credentialed LDAP access
 
-### 📤 **Output Formats**
-- 📋 **JSON Reports** - Detailed results with scoring and comprehensive metadata
-- 📊 **CSV Summaries** - Simplified tabular format for executive reporting
-- 🚨 **Sigma Rules** - Generated detection rules for SIEM integration
-- 🔓 **Hash Files** - `asrep_hashes.txt` and `kerberoast_hashes.txt` for cracking tools
-- 📝 **Cracking Logs** - Detailed progress tracking in `results/crack_*.log`
-- 🎯 **Visual Banners** - Randomized ASCII art for professional presentation
+###  **Output Formats**
+-  **JSON Reports** - Detailed results with scoring and comprehensive metadata
+-  **CSV Summaries** - Simplified tabular format for executive reporting
+-  **Sigma Rules** - Generated detection rules for SIEM integration
+-  **Hash Files** - `asrep_hashes.txt` and `kerberoast_hashes.txt` for cracking tools
+-  **Cracking Logs** - Detailed progress tracking in `results/crack_*.log`
 
-### 🛡️ **Security & Safety Features**
-- 🔒 **Authorization Required** - `--i-am-authorized` flag prevents accidental misuse
-- 📝 **Comprehensive Logging** - Detailed audit trails with emoji-enhanced output
-- ⚡ **Single Binary** - Zero external dependencies for core functionality  
-- 🎯 **Production Ready** - Robust error handling, connection retry, and validation
-- 🔐 **SSL/TLS Support** - LDAPS connections with `--ssl` flag
-- 🚨 **Legal Warnings** - Built-in reminders for authorized use only
+###  **Security & Safety Features**
+-  **Authorization Required** - `--i-am-authorized` flag prevents accidental misuse
+-  **Comprehensive Logging** - Detailed audit trails with emoji-enhanced output
+-  **Single Binary** - Zero external dependencies for core functionality  
+-  **Production Ready** - Robust error handling, connection retry, and validation
+-  **SSL/TLS Support** - LDAPS connections with `--ssl` flag
+-  **Legal Warnings** - Built-in reminders for authorized use only
 
-### 🚀 **Deployment & Integration**
-- 🐧 **Kali Linux Ready** - Pre-configured installation scripts
-- 🐳 **Docker Support** - Containerized deployment options
-- 🔄 **CI/CD Integration** - GitHub Actions with automated testing
-- 📦 **Easy Installation** - `make install` for system-wide deployment
-- 🎮 **Simple Interface** - Intuitive command structure for rapid deployment
+###  **Deployment & Integration**
+-  **Kali Linux Ready** - Pre-configured installation scripts
+-  **Docker Support** - Containerized deployment options
+-  **CI/CD Integration** - GitHub Actions with automated testing
+-  **Easy Installation** - `make install` for system-wide deployment
+-  **Simple Interface** - Intuitive command structure for rapid deployment
 
 ---
 
-## 🚀 **INSTALLATION**
+##  **INSTALLATION**
 
-### 📦 **Pre-built Binaries**
+###  **Pre-built Binaries**
 ```bash
 # Download from releases
 wget https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/releases/latest/download/kerb-sleuth-linux-amd64
@@ -96,14 +95,14 @@ chmod +x kerb-sleuth-linux-amd64
 ./kerb-sleuth-linux-amd64 --help
 ```
 
-### 🔨 **Build from Source**
+###  **Build from Source**
 ```bash
 git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
 cd KERB-SLEUTH
 make build
 ```
 
-### 🏁 **Kali Linux (Automated)**
+###  **Kali Linux (Automated)**
 ```bash
 # One-liner install
 curl -sSL https://raw.githubusercontent.com/thechosenone-shall-prevail/KERB-SLEUTH/main/quick-install.sh | bash
@@ -115,7 +114,7 @@ chmod +x install-kali.sh
 ./install-kali.sh
 ```
 
-### 🐳 **Docker**
+###  **Docker**
 ```bash
 # Build and run with Docker
 git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
@@ -137,7 +136,7 @@ docker-compose exec kerb-sleuth ./kerb-sleuth --help
 
 ## ⚡ **QUICK START** 
 
-### 🎯 **LIVE TARGET HUNTING** (Primary Mode)
+###  **LIVE TARGET HUNTING** (Primary Mode)
 
 **Just give it a target IP or hostname - KERB-SLEUTH does the rest!**
 
@@ -155,41 +154,41 @@ kerb-sleuth hunt --target 10.0.0.1 --user guest --pass ''
 kerb-sleuth hunt --target 10.0.0.1 --ssl --crack --i-am-authorized
 ```
 
-### 🔥 **WHAT HAPPENS AUTOMATICALLY:**
+###  **WHAT HAPPENS AUTOMATICALLY:**
 
-1. **🔍 LDAP Connection** - Tries anonymous first, falls back to LDAPS if needed
-2. **👥 User Enumeration** - Pulls all AD users via live LDAP queries  
-3. **🎯 AS-REP Hunting** - Finds accounts with `DoesNotRequirePreAuth=True`
-4. **🎟️ Kerberoast Hunting** - Finds accounts with Service Principal Names (SPNs)
-5. **📊 Risk Scoring** - Intelligent scoring based on password age, group membership, etc.
-6. **💾 Results Export** - JSON, CSV, and SIEM-ready Sigma rules
-7. **🔓 Auto-Cracking** *(if `--crack` enabled)* - Extracts hashes and runs hashcat with rockyou.txt
+1. ** LDAP Connection** - Tries anonymous first, falls back to LDAPS if needed
+2. ** User Enumeration** - Pulls all AD users via live LDAP queries  
+3. ** AS-REP Hunting** - Finds accounts with `DoesNotRequirePreAuth=True`
+4. ** Kerberoast Hunting** - Finds accounts with Service Principal Names (SPNs)
+5. ** Risk Scoring** - Intelligent scoring based on password age, group membership, etc.
+6. ** Results Export** - JSON, CSV, and SIEM-ready Sigma rules
+7. ** Auto-Cracking** *(if `--crack` enabled)* - Extracts hashes and runs hashcat with rockyou.txt
 
-### 📋 **EXAMPLE OUTPUT:**
+###  **EXAMPLE OUTPUT:**
 ```
-🩸 KERB-SLEUTH v1.0.0 - Kerberos Vulnerability Hunter 💀
+🩸 KERB-SLEUTH v1.0.0 - Kerberos Vulnerability Hunter 
 
-🔗 Attempting to connect to target: 10.0.0.1
-✅ Connected via Anonymous LDAP, Base DN: DC=corp,DC=local  
-🏢 Domain: CORP.LOCAL
-👥 Enumerated 1,337 users from target
-🎯 Found 3 AS-REP candidates
-🎟️ Found 12 Kerberoast candidates  
-📊 Results written to: results.json
+ [*]Attempting to connect to target: 10.0.0.1
+ [+]Connected via Anonymous LDAP, Base DN: DC=corp,DC=local  
+ [+]Domain: CORP.LOCAL
+ [+]Enumerated 1,337 users from target
+ [+]Found 3 AS-REP candidates
+ [+]Found 12 Kerberoast candidates  
+ [+]Results written to: results.json
 
-🔓 Starting hash extraction and cracking...
-📄 AS-REP hashes exported to: hashes/asrep_hashes.txt
-🔨 Starting AS-REP hash cracking with wordlist: /usr/share/wordlists/rockyou.txt  
-🎉 CRACKED PASSWORDS FOUND!
-backup_svc:Password123!
+ [*]Starting hash extraction and cracking...
+ [+]AS-REP hashes exported to: hashes/asrep_hashes.txt
+ [*]Starting AS-REP hash cracking with wordlist: /usr/share/wordlists/rockyou.txt  
+ [+]CRACKED PASSWORDS FOUND!
+ backup_svc:Password123!
 
-✅ Hunt complete! High: 2 | Medium: 8 | Low: 5 risk targets
-🚨 2 HIGH RISK targets found! Check results.json for details
+ [+]Hunt complete! High: 2 | Medium: 8 | Low: 5 risk targets
+ 2 HIGH RISK targets found! Check results.json for details
 ```
 
 ---
 
-### 🗂️ **LEGACY FILE ANALYSIS** (Optional)
+###  **LEGACY FILE ANALYSIS** (Optional)
 
 If you already have exported AD files, you can analyze them offline:
 
@@ -203,9 +202,9 @@ kerb-sleuth simulate --dataset small --out tests/sample_data/
 
 ---
 
-## 🎮 **USAGE EXAMPLES**
+##  **USAGE EXAMPLES**
 
-### 🎯 **Live Target Hunting** (Primary Mode)
+###  **Live Target Hunting** (Primary Mode)
 ```bash
 # Anonymous hunting (tries LDAP port 389)
 kerb-sleuth hunt --target 192.168.1.10
@@ -224,7 +223,7 @@ kerb-sleuth hunt --target 10.0.0.1 --ssl
 kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 ```
 
-### 🔓 **Advanced Hunting & Exploitation**
+###  **Advanced Hunting & Exploitation**
 ```bash
 # Hunt with custom wordlist
 kerb-sleuth hunt --target 10.0.0.1 --crack --wordlist /opt/wordlists/custom.txt --i-am-authorized
@@ -236,7 +235,7 @@ kerb-sleuth hunt --target 10.0.0.1 --csv --siem --crack --i-am-authorized
 kerb-sleuth hunt --target 10.0.0.1 --config custom-weights.yml
 ```
 
-### 📁 **File Analysis** (Legacy Mode)
+###  **File Analysis** (Legacy Mode)
 ```bash
 # Analyze exported AD files
 kerb-sleuth analyze --ad users.csv --out results.json
@@ -246,7 +245,7 @@ kerb-sleuth analyze --ad export.json --csv --siem
 kerb-sleuth simulate --dataset large --out tests/sample_data/
 ```
 
-### 🐳 **Docker Usage**
+###  **Docker Usage**
 ```bash
 # Run in Docker container
 ./run-docker.sh hunt --target 10.0.0.1
@@ -257,9 +256,9 @@ kerb-sleuth simulate --dataset large --out tests/sample_data/
 
 ---
 
-## 📊 **OUTPUT FORMATS**
+##  **OUTPUT FORMATS**
 
-### 📋 **JSON Output**
+###  **JSON Output**
 ```json
 {
   "summary": {
@@ -308,14 +307,14 @@ kerb-sleuth simulate --dataset large --out tests/sample_data/
 }
 ```
 
-### 📈 **CSV Summary**
+###  **CSV Summary**
 ```csv
 SamAccountName,Type,Score,Severity,Reasons,SPNs,ExportHashPath
 backup_svc,ASREP,95,High,"DoesNotRequirePreAuth enabled; Password older than 365 days",,
 sql_service,KERBEROAST,87,High,"Multiple SPNs registered; Password older than 180 days","MSSQLSvc/sql01.corp.local:1433",exports/kerb_hashes.txt
 ```
 
-### 🚨 **Sigma Detection Rules**
+###  **Sigma Detection Rules**
 ```yaml
 title: AS-REP Roasting Detection
 description: Detects potential AS-REP roasting attempts
@@ -335,7 +334,7 @@ level: high
 
 ## ⚙️ **CONFIGURATION**
 
-### 📝 **Custom Scoring Weights** (`configs/defaults.yml`)
+###  **Custom Scoring Weights** (`configs/defaults.yml`)
 ```yaml
 weights:
   # AS-REP Roasting Weights
@@ -380,9 +379,9 @@ high_value_services:
 
 ---
 
-## 🛠️ **DEVELOPMENT**
+##  **DEVELOPMENT**
 
-### 🧪 **Running Tests**
+###  **Running Tests**
 ```bash
 # Run all tests
 make test
@@ -394,7 +393,7 @@ make test-coverage
 go test ./pkg/ingest -v
 ```
 
-### 🏗️ **Building for Multiple Platforms**
+###  **Building for Multiple Platforms**
 ```bash
 # Build for all platforms
 make build-all
@@ -405,7 +404,7 @@ make build-windows
 make build-mac
 ```
 
-### 📦 **Docker Development**
+###  **Docker Development**
 ```bash
 # Build docker image
 make docker-build
@@ -414,7 +413,7 @@ make docker-build
 make docker-run
 ```
 
-### 🚀 **Release Preparation**
+###  **Release Preparation**
 ```bash
 # Automated release preparation
 ./prepare-release.sh
@@ -434,32 +433,32 @@ make docker-run
 
 ### **Step-by-Step Workflow:**
 
-1. **🎯 Give it a target:** `kerb-sleuth hunt --target 10.0.0.1`
+1. ** Give it a target:** `kerb-sleuth hunt --target 10.0.0.1`
 
-2. **🔍 Auto-Discovery:**
+2. ** Auto-Discovery:**
    - Resolves hostname to IP
    - Tries anonymous LDAP connection (port 389)
    - Falls back to LDAPS (port 636) if needed
    - Discovers domain name and base DN
 
-3. **👥 User Enumeration:**
+3. ** User Enumeration:**
    - Pulls ALL Active Directory users via live LDAP
    - Extracts user properties (UAC, SPNs, groups, etc.)
 
-4. **🎯 Vulnerability Detection:**
+4. ** Vulnerability Detection:**
    - **AS-REP Roasting:** Finds `DoesNotRequirePreAuth=True` accounts
    - **Kerberoasting:** Finds accounts with Service Principal Names (SPNs)
 
-5. **📊 Risk Assessment:**
+5. ** Risk Assessment:**
    - Scores based on password age, group membership, account activity
    - Prioritizes high-value targets (Domain Admins, service accounts, etc.)
 
-6. **💾 Results Export:**
+6. ** Results Export:**
    - JSON for detailed analysis
    - CSV for spreadsheet import  
    - Sigma rules for SIEM integration
 
-7. **🔓 Auto-Exploitation** *(optional with `--crack`)*:
+7. ** Auto-Exploitation** *(optional with `--crack`)*:
    - Extracts AS-REP hashes (`hashcat -m 18200`)
    - Extracts Kerberoast hashes (`hashcat -m 13100`) 
    - Auto-cracks with `rockyou.txt` wordlist
@@ -473,7 +472,7 @@ make docker-run
 
 ---
 
-## 🆚 **OLD vs NEW WORKFLOW**
+##  **OLD vs NEW WORKFLOW**
 
 ### ❌ **Traditional Approach (Complex)**
 ```bash
@@ -499,7 +498,7 @@ hashcat -m 13100 tgs.hashes /usr/share/wordlists/rockyou.txt
 # One command does everything!
 kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 
-# That's it! 🎉
+# That's it! 
 # ✅ Enumerates users via live LDAP  
 # ✅ Finds AS-REP & Kerberoast targets
 # ✅ Extracts hashes automatically
@@ -507,13 +506,13 @@ kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 # ✅ Shows results immediately
 ```
 
-### 🚀 **Why KERB-SLEUTH is Better:**
-- **🎯 Point & Shoot:** Just give it a target IP/hostname
-- **🔄 Fully Automated:** No manual export or hash extraction steps  
-- **⚡ Real-time:** Works against live DCs, not just exported files
-- **🧠 Intelligent:** Auto-detects connection methods and domains
-- **🔓 Complete:** Finds vulnerabilities AND exploits them
-- **📊 Professional:** Clean outputs ready for reporting
+###  **Why KERB-SLEUTH is Better:**
+- ** Point & Shoot:** Just give it a target IP/hostname
+- ** Fully Automated:** No manual export or hash extraction steps  
+- ** Real-time:** Works against live DCs, not just exported files
+- ** Intelligent:** Auto-detects connection methods and domains
+- ** Complete:** Finds vulnerabilities AND exploits them
+- ** Professional:** Clean outputs ready for reporting
 
 
 ---
@@ -522,13 +521,13 @@ kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-### 🔒 **Security Policy**
+###  **Security Policy**
 - All contributions must follow security-first principles
 - No real credentials or sensitive data in code
 - Synthetic test data only
 - All destructive operations require explicit authorization
 
-### 🐛 **Bug Reports**
+###  **Bug Reports**
 Found a bug? Please open an issue with:
 - Operating system and Go version
 - Command that caused the issue
@@ -537,16 +536,16 @@ Found a bug? Please open an issue with:
 
 ---
 
-## 📋 **ROADMAP**
+##  **ROADMAP**
 
-### 🚀 **Version 2.0**
+###  **Version 2.0**
 - [ ] Live Active Directory integration
 - [ ] Real-time monitoring capabilities
 - [ ] Advanced machine learning scoring
 - [ ] Web dashboard interface
 - [ ] Kubernetes deployment
 
-### 🔮 **Future Features**
+###  **Future Features**
 - [ ] BloodHound integration
 - [ ] Azure AD support
 - [ ] Custom plugin system
@@ -555,7 +554,7 @@ Found a bug? Please open an issue with:
 
 ---
 
-## 📊 **STATISTICS**
+##  **STATISTICS**
 
 ```
 Lines of Code: ~2,500
@@ -567,28 +566,28 @@ Platforms: Windows, Linux, macOS, ARM64
 
 ---
 
-## 🏆 **HALL OF FAME**
+##  **HALL OF FAME**
 
-### 🎖️ **Contributors**
+###  **Contributors**
 - **@thechosenone-shall-prevail** - Project Creator & Lead Developer
 
-### 🙏 **Special Thanks**
+###  **Special Thanks**
 - Active Directory community for testing and feedback
 - Go security community for best practices
 - Red team operators for real-world validation
 
 ---
 
-## 📞 **SUPPORT**
+##  **SUPPORT**
 
-- 📚 **Documentation**: Check the [Wiki](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/wiki)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/discussions)  
-- 🐛 **Issues**: [Bug Reports](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/issues)
-- 📧 **Email**: ss1812@srmist.edu.in[domain] (for security issues only)
+-  **Documentation**: Check the [Wiki](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/wiki)
+-  **Discussions**: [GitHub Discussions](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/discussions)  
+-  **Issues**: [Bug Reports](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/issues)
+-  **Email**: ss1812@srmist.edu.in[domain] (for security issues only)
 
 ---
 
-## 📜 **LICENSE**
+##  **LICENSE**
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
@@ -596,13 +595,13 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 <div align="center">
 
-### 🔥 **REMEMBER: WITH GREAT POWER COMES GREAT RESPONSIBILITY** 🔥
+###  **REMEMBER** 
 
 **Use this tool ethically and legally. Always obtain proper authorization.**
 
 ---
 
-*Made with ❤️ and ☕ by [@thechosenone-shall-prevail](https://github.com/thechosenone-shall-prevail)*
+*Made with :D by [@thechosenone-shall-prevail](https://github.com/thechosenone-shall-prevail)*
 
 **⭐ Star this repo if you find it useful! ⭐**
 
