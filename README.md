@@ -166,24 +166,24 @@ kerb-sleuth hunt --target 10.0.0.1 --ssl --crack --i-am-authorized
 
 ###  **EXAMPLE OUTPUT:**
 ```
-🩸 KERB-SLEUTH v1.0.0 - Kerberos Vulnerability Hunter 💀
+🩸 KERB-SLEUTH v1.0.0 - Kerberos Vulnerability Hunter 
 
-🔗 Attempting to connect to target: 10.0.0.1
-✅ Connected via Anonymous LDAP, Base DN: DC=corp,DC=local  
-🏢 Domain: CORP.LOCAL
-👥 Enumerated 1,337 users from target
-🎯 Found 3 AS-REP candidates
-🎟️ Found 12 Kerberoast candidates  
-📊 Results written to: results.json
+ Attempting to connect to target: 10.0.0.1
+ Connected via Anonymous LDAP, Base DN: DC=corp,DC=local  
+ Domain: CORP.LOCAL
+ Enumerated 1,337 users from target
+ Found 3 AS-REP candidates
+ Found 12 Kerberoast candidates  
+ Results written to: results.json
 
-🔓 Starting hash extraction and cracking...
-📄 AS-REP hashes exported to: hashes/asrep_hashes.txt
-🔨 Starting AS-REP hash cracking with wordlist: /usr/share/wordlists/rockyou.txt  
-🎉 CRACKED PASSWORDS FOUND!
+ Starting hash extraction and cracking...
+ AS-REP hashes exported to: hashes/asrep_hashes.txt
+ Starting AS-REP hash cracking with wordlist: /usr/share/wordlists/rockyou.txt  
+ CRACKED PASSWORDS FOUND!
 backup_svc:Password123!
 
-✅ Hunt complete! High: 2 | Medium: 8 | Low: 5 risk targets
-🚨 2 HIGH RISK targets found! Check results.json for details
+ Hunt complete! High: 2 | Medium: 8 | Low: 5 risk targets
+ 2 HIGH RISK targets found! Check results.json for details
 ```
 
 ---
@@ -204,7 +204,7 @@ kerb-sleuth simulate --dataset small --out tests/sample_data/
 
 ##  **USAGE EXAMPLES**
 
-### 🎯 **Live Target Hunting** (Primary Mode)
+###  **Live Target Hunting** (Primary Mode)
 ```bash
 # Anonymous hunting (tries LDAP port 389)
 kerb-sleuth hunt --target 192.168.1.10
@@ -258,7 +258,7 @@ kerb-sleuth simulate --dataset large --out tests/sample_data/
 
 ##  **OUTPUT FORMATS**
 
-### 📋 **JSON Output**
+###  **JSON Output**
 ```json
 {
   "summary": {
@@ -307,7 +307,7 @@ kerb-sleuth simulate --dataset large --out tests/sample_data/
 }
 ```
 
-### 📈 **CSV Summary**
+###  **CSV Summary**
 ```csv
 SamAccountName,Type,Score,Severity,Reasons,SPNs,ExportHashPath
 backup_svc,ASREP,95,High,"DoesNotRequirePreAuth enabled; Password older than 365 days",,
@@ -334,7 +334,7 @@ level: high
 
 ## ⚙️ **CONFIGURATION**
 
-### 📝 **Custom Scoring Weights** (`configs/defaults.yml`)
+###  **Custom Scoring Weights** (`configs/defaults.yml`)
 ```yaml
 weights:
   # AS-REP Roasting Weights
@@ -381,7 +381,7 @@ high_value_services:
 
 ##  **DEVELOPMENT**
 
-### 🧪 **Running Tests**
+###  **Running Tests**
 ```bash
 # Run all tests
 make test
@@ -393,7 +393,7 @@ make test-coverage
 go test ./pkg/ingest -v
 ```
 
-### 🏗️ **Building for Multiple Platforms**
+###  **Building for Multiple Platforms**
 ```bash
 # Build for all platforms
 make build-all
@@ -404,7 +404,7 @@ make build-windows
 make build-mac
 ```
 
-### 📦 **Docker Development**
+###  **Docker Development**
 ```bash
 # Build docker image
 make docker-build
@@ -413,7 +413,7 @@ make docker-build
 make docker-run
 ```
 
-### 🚀 **Release Preparation**
+###  **Release Preparation**
 ```bash
 # Automated release preparation
 ./prepare-release.sh
@@ -433,32 +433,32 @@ make docker-run
 
 ### **Step-by-Step Workflow:**
 
-1. **🎯 Give it a target:** `kerb-sleuth hunt --target 10.0.0.1`
+1. ** Give it a target:** `kerb-sleuth hunt --target 10.0.0.1`
 
-2. **🔍 Auto-Discovery:**
+2. ** Auto-Discovery:**
    - Resolves hostname to IP
    - Tries anonymous LDAP connection (port 389)
    - Falls back to LDAPS (port 636) if needed
    - Discovers domain name and base DN
 
-3. **👥 User Enumeration:**
+3. ** User Enumeration:**
    - Pulls ALL Active Directory users via live LDAP
    - Extracts user properties (UAC, SPNs, groups, etc.)
 
-4. **🎯 Vulnerability Detection:**
+4. ** Vulnerability Detection:**
    - **AS-REP Roasting:** Finds `DoesNotRequirePreAuth=True` accounts
    - **Kerberoasting:** Finds accounts with Service Principal Names (SPNs)
 
-5. **📊 Risk Assessment:**
+5. ** Risk Assessment:**
    - Scores based on password age, group membership, account activity
    - Prioritizes high-value targets (Domain Admins, service accounts, etc.)
 
-6. **💾 Results Export:**
+6. ** Results Export:**
    - JSON for detailed analysis
    - CSV for spreadsheet import  
    - Sigma rules for SIEM integration
 
-7. **🔓 Auto-Exploitation** *(optional with `--crack`)*:
+7. ** Auto-Exploitation** *(optional with `--crack`)*:
    - Extracts AS-REP hashes (`hashcat -m 18200`)
    - Extracts Kerberoast hashes (`hashcat -m 13100`) 
    - Auto-cracks with `rockyou.txt` wordlist
@@ -472,7 +472,7 @@ make docker-run
 
 ---
 
-## 🆚 **OLD vs NEW WORKFLOW**
+##  **OLD vs NEW WORKFLOW**
 
 ### ❌ **Traditional Approach (Complex)**
 ```bash
@@ -498,7 +498,7 @@ hashcat -m 13100 tgs.hashes /usr/share/wordlists/rockyou.txt
 # One command does everything!
 kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 
-# That's it! 🎉
+# That's it! 
 # ✅ Enumerates users via live LDAP  
 # ✅ Finds AS-REP & Kerberoast targets
 # ✅ Extracts hashes automatically
@@ -506,13 +506,13 @@ kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 # ✅ Shows results immediately
 ```
 
-### 🚀 **Why KERB-SLEUTH is Better:**
-- **🎯 Point & Shoot:** Just give it a target IP/hostname
-- **🔄 Fully Automated:** No manual export or hash extraction steps  
-- **⚡ Real-time:** Works against live DCs, not just exported files
-- **🧠 Intelligent:** Auto-detects connection methods and domains
-- **🔓 Complete:** Finds vulnerabilities AND exploits them
-- **📊 Professional:** Clean outputs ready for reporting
+###  **Why KERB-SLEUTH is Better:**
+- ** Point & Shoot:** Just give it a target IP/hostname
+- ** Fully Automated:** No manual export or hash extraction steps  
+- ** Real-time:** Works against live DCs, not just exported files
+- ** Intelligent:** Auto-detects connection methods and domains
+- ** Complete:** Finds vulnerabilities AND exploits them
+- ** Professional:** Clean outputs ready for reporting
 
 
 ---
@@ -521,13 +521,13 @@ kerb-sleuth hunt --target 10.0.0.1 --crack --i-am-authorized
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-### 🔒 **Security Policy**
+###  **Security Policy**
 - All contributions must follow security-first principles
 - No real credentials or sensitive data in code
 - Synthetic test data only
 - All destructive operations require explicit authorization
 
-### 🐛 **Bug Reports**
+###  **Bug Reports**
 Found a bug? Please open an issue with:
 - Operating system and Go version
 - Command that caused the issue
@@ -536,16 +536,16 @@ Found a bug? Please open an issue with:
 
 ---
 
-## 📋 **ROADMAP**
+##  **ROADMAP**
 
-### 🚀 **Version 2.0**
+###  **Version 2.0**
 - [ ] Live Active Directory integration
 - [ ] Real-time monitoring capabilities
 - [ ] Advanced machine learning scoring
 - [ ] Web dashboard interface
 - [ ] Kubernetes deployment
 
-### 🔮 **Future Features**
+###  **Future Features**
 - [ ] BloodHound integration
 - [ ] Azure AD support
 - [ ] Custom plugin system
@@ -554,7 +554,7 @@ Found a bug? Please open an issue with:
 
 ---
 
-## 📊 **STATISTICS**
+##  **STATISTICS**
 
 ```
 Lines of Code: ~2,500
@@ -566,24 +566,24 @@ Platforms: Windows, Linux, macOS, ARM64
 
 ---
 
-## 🏆 **HALL OF FAME**
+##  **HALL OF FAME**
 
-### 🎖️ **Contributors**
+###  **Contributors**
 - **@thechosenone-shall-prevail** - Project Creator & Lead Developer
 
-### 🙏 **Special Thanks**
+###  **Special Thanks**
 - Active Directory community for testing and feedback
 - Go security community for best practices
 - Red team operators for real-world validation
 
 ---
 
-## 📞 **SUPPORT**
+##  **SUPPORT**
 
-- 📚 **Documentation**: Check the [Wiki](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/wiki)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/discussions)  
-- 🐛 **Issues**: [Bug Reports](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/issues)
-- 📧 **Email**: ss1812@srmist.edu.in[domain] (for security issues only)
+-  **Documentation**: Check the [Wiki](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/wiki)
+-  **Discussions**: [GitHub Discussions](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/discussions)  
+-  **Issues**: [Bug Reports](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/issues)
+-  **Email**: ss1812@srmist.edu.in[domain] (for security issues only)
 
 ---
 
@@ -601,7 +601,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-*Made with ❤️ and ☕ by [@thechosenone-shall-prevail](https://github.com/thechosenone-shall-prevail)*
+*Made with :D by [@thechosenone-shall-prevail](https://github.com/thechosenone-shall-prevail)*
 
 **⭐ Star this repo if you find it useful! ⭐**
 
