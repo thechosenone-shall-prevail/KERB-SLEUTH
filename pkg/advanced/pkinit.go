@@ -37,11 +37,11 @@ func NewPKINITAnalyzer(client *krb.LDAPClient, auditMode bool) *PKINITAnalyzer {
 
 // EnumerateADCS enumerates AD Certificate Services templates
 func (pa *PKINITAnalyzer) EnumerateADCS() ([]*PKINITResult, error) {
-	log.Printf("🔍 Enumerating AD CS templates...")
+	log.Printf("[*] Enumerating AD CS templates...")
 
 	// Check if client is available
 	if pa.Client == nil || pa.Client.GetConnection() == nil {
-		log.Printf("⚠️  LDAP client not available, returning empty results")
+		log.Printf("[!] LDAP client not available, returning empty results")
 		return []*PKINITResult{}, nil
 	}
 
@@ -77,7 +77,7 @@ func (pa *PKINITAnalyzer) EnumerateADCS() ([]*PKINITResult, error) {
 	for _, entry := range sr.Entries {
 		result, err := pa.analyzeTemplate(entry)
 		if err != nil {
-			log.Printf("⚠️  Failed to analyze template %s: %v", entry.DN, err)
+			log.Printf("[x] Failed to analyze template %s: %v", entry.DN, err)
 			continue
 		}
 		results = append(results, result)
@@ -88,7 +88,7 @@ func (pa *PKINITAnalyzer) EnumerateADCS() ([]*PKINITResult, error) {
 
 // AnalyzeTemplateRisk analyzes risk for specific certificate template
 func (pa *PKINITAnalyzer) AnalyzeTemplateRisk(templateName string) (*PKINITResult, error) {
-	log.Printf("🎯 Analyzing certificate template risk: %s", templateName)
+	log.Printf("[*] Analyzing certificate template risk: %s", templateName)
 
 	searchFilter := fmt.Sprintf("(name=%s)", templateName)
 	searchRequest := ldap.NewSearchRequest(

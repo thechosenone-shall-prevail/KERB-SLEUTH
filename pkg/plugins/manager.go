@@ -76,7 +76,7 @@ func NewPluginManager(pluginDir, configFile string) *PluginManager {
 
 // LoadPlugins loads all available plugins
 func (pm *PluginManager) LoadPlugins() error {
-	log.Printf("🔌 Loading plugins from: %s", pm.PluginDir)
+	log.Printf("[*] Loading plugins from: %s", pm.PluginDir)
 
 	// Create plugin directory if it doesn't exist
 	if err := os.MkdirAll(pm.PluginDir, 0755); err != nil {
@@ -85,7 +85,7 @@ func (pm *PluginManager) LoadPlugins() error {
 
 	// Load plugin configuration
 	if err := pm.loadPluginConfig(); err != nil {
-		log.Printf("⚠️  Failed to load plugin config: %v", err)
+		log.Printf("[x] Failed to load plugin config: %v", err)
 	}
 
 	// Find all plugin files
@@ -97,12 +97,12 @@ func (pm *PluginManager) LoadPlugins() error {
 	// Load each plugin
 	for _, pluginFile := range pluginFiles {
 		if err := pm.loadPlugin(pluginFile); err != nil {
-			log.Printf("⚠️  Failed to load plugin %s: %v", pluginFile, err)
+			log.Printf("[x] Failed to load plugin %s: %v", pluginFile, err)
 			continue
 		}
 	}
 
-	log.Printf("✅ Loaded %d plugins", len(pm.Plugins))
+	log.Printf("[+] Loaded %d plugins", len(pm.Plugins))
 	return nil
 }
 
@@ -151,9 +151,9 @@ func (pm *PluginManager) loadPlugin(pluginPath string) error {
 		if err := pluginInstance.Initialize(map[string]interface{}{}); err != nil {
 			return fmt.Errorf("failed to initialize plugin: %v", err)
 		}
-		log.Printf("✅ Plugin %s v%s initialized", name, version)
+		log.Printf("[+] Plugin %s v%s initialized", name, version)
 	} else {
-		log.Printf("⚠️  Plugin %s v%s disabled", name, version)
+		log.Printf("[-] Plugin %s v%s disabled", name, version)
 	}
 
 	// Store loaded plugin
@@ -194,9 +194,9 @@ func (pm *PluginManager) ExecutePlugin(pluginName string, input map[string]inter
 
 	if err != nil {
 		result.Error = err.Error()
-		log.Printf("⚠️  Plugin %s execution failed: %v", pluginName, err)
+		log.Printf("[-] Plugin %s execution failed: %v", pluginName, err)
 	} else {
-		log.Printf("✅ Plugin %s executed successfully in %v", pluginName, duration)
+		log.Printf("[+] Plugin %s executed successfully in %v", pluginName, duration)
 	}
 
 	return result, nil
@@ -215,14 +215,14 @@ func (pm *PluginManager) ExecuteAllPlugins(input map[string]interface{}) ([]*Plu
 
 		result, err := pm.ExecutePlugin(name, input)
 		if err != nil {
-			log.Printf("⚠️  Failed to execute plugin %s: %v", name, err)
+			log.Printf("[-] Failed to execute plugin %s: %v", name, err)
 			continue
 		}
 
 		results = append(results, result)
 	}
 
-	log.Printf("✅ Executed %d plugins", len(results))
+	log.Printf("[+] Executed %d plugins", len(results))
 	return results, nil
 }
 
@@ -245,7 +245,7 @@ func (pm *PluginManager) EnablePlugin(pluginName string) error {
 	loadedPlugin.Info.Enabled = true
 	pm.EnabledPlugins = append(pm.EnabledPlugins, pluginName)
 
-	log.Printf("✅ Plugin %s enabled", pluginName)
+	log.Printf("[+] Plugin %s enabled", pluginName)
 	return nil
 }
 
@@ -262,13 +262,13 @@ func (pm *PluginManager) DisablePlugin(pluginName string) error {
 
 	// Cleanup plugin
 	if err := loadedPlugin.Instance.Cleanup(); err != nil {
-		log.Printf("⚠️  Failed to cleanup plugin %s: %v", pluginName, err)
+		log.Printf("[-] Failed to cleanup plugin %s: %v", pluginName, err)
 	}
 
 	loadedPlugin.Info.Enabled = false
 	pm.removeFromEnabledList(pluginName)
 
-	log.Printf("✅ Plugin %s disabled", pluginName)
+	log.Printf("[-] Plugin %s disabled", pluginName)
 	return nil
 }
 
@@ -282,14 +282,14 @@ func (pm *PluginManager) UnloadPlugin(pluginName string) error {
 	// Cleanup and disable
 	if loadedPlugin.Info.Enabled {
 		if err := pm.DisablePlugin(pluginName); err != nil {
-			log.Printf("⚠️  Failed to disable plugin %s: %v", pluginName, err)
+			log.Printf("[-] Failed to disable plugin %s: %v", pluginName, err)
 		}
 	}
 
 	// Remove from plugins map
 	delete(pm.Plugins, pluginName)
 
-	log.Printf("✅ Plugin %s unloaded", pluginName)
+	log.Printf("[-] Plugin %s unloaded", pluginName)
 	return nil
 }
 
@@ -400,19 +400,19 @@ func (pm *PluginManager) IntegrateWithKerberosAnalysis(results []krb.Candidate) 
 	// Process plugin results
 	for _, result := range pluginResults {
 		if result.Success {
-			log.Printf("✅ Plugin %s processed %d Kerberos results", result.PluginName, len(results))
+			log.Printf("[+] Plugin %s processed %d Kerberos results", result.PluginName, len(results))
 		} else {
-			log.Printf("⚠️  Plugin %s failed: %s", result.PluginName, result.Error)
+			log.Printf("[-] Plugin %s failed: %s", result.PluginName, result.Error)
 		}
 	}
 
-	log.Printf("✅ Plugin integration completed")
+	log.Printf("[+] Plugin integration completed")
 	return nil
 }
 
 // CreatePluginTemplate creates a plugin template
 func CreatePluginTemplate(pluginName, author, description string) error {
-	log.Printf("📝 Creating plugin template: %s", pluginName)
+	log.Printf("[-] Creating plugin template: %s", pluginName)
 
 	// Create plugin directory
 	pluginDir := fmt.Sprintf("plugins/%s", pluginName)
@@ -597,6 +597,6 @@ echo "Plugin built successfully: %s.so"
 		return fmt.Errorf("failed to create build script: %v", err)
 	}
 
-	log.Printf("✅ Plugin template created in: %s", pluginDir)
+	log.Printf("[-] Plugin template created in: %s", pluginDir)
 	return nil
 }

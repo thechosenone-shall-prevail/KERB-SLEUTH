@@ -39,11 +39,11 @@ func NewS4UAnalyzer(client *krb.LDAPClient, auditMode bool) *S4UAnalyzer {
 
 // EnumerateS4UDelegation enumerates all accounts with S4U delegation configurations
 func (sa *S4UAnalyzer) EnumerateS4UDelegation() ([]*S4UResult, error) {
-	log.Printf("🔍 Enumerating S4U delegation configurations...")
+	log.Printf("[*] Enumerating S4U delegation configurations...")
 
 	// Check if client is available
 	if sa.Client == nil || sa.Client.GetConnection() == nil {
-		log.Printf("⚠️  LDAP client not available, returning empty results")
+		log.Printf("[!] LDAP client not available, returning empty results")
 		return []*S4UResult{}, nil
 	}
 
@@ -81,7 +81,7 @@ func (sa *S4UAnalyzer) EnumerateS4UDelegation() ([]*S4UResult, error) {
 	for _, entry := range sr.Entries {
 		result, err := sa.analyzeS4UAccount(entry)
 		if err != nil {
-			log.Printf("⚠️  Failed to analyze S4U account %s: %v", entry.DN, err)
+			log.Printf("[x] Failed to analyze S4U account %s: %v", entry.DN, err)
 			continue
 		}
 		results = append(results, result)
@@ -96,7 +96,7 @@ func (sa *S4UAnalyzer) SimulateS4URequest(targetAccount, impersonateUser string)
 		return nil, fmt.Errorf("S4U simulation requires audit mode")
 	}
 
-	log.Printf("🎯 Simulating S4U request for %s to impersonate %s", targetAccount, impersonateUser)
+	log.Printf("[*] Simulating S4U request for %s to impersonate %s", targetAccount, impersonateUser)
 
 	// Find the target account
 	result, err := sa.findAccountBySamAccountName(targetAccount)
@@ -106,19 +106,19 @@ func (sa *S4UAnalyzer) SimulateS4URequest(targetAccount, impersonateUser string)
 
 	// Simulate S4U2Self request
 	if result.TrustedForDelegation {
-		log.Printf("✅ S4U2Self simulation: %s can obtain TGT for %s", targetAccount, impersonateUser)
+		log.Printf("[+] S4U2Self simulation: %s can obtain TGT for %s", targetAccount, impersonateUser)
 		result.DelegationFlags = append(result.DelegationFlags, "S4U2Self_SUCCESS")
 	} else {
-		log.Printf("❌ S4U2Self simulation: %s cannot obtain TGT for %s", targetAccount, impersonateUser)
+		log.Printf("[!] S4U2Self simulation: %s cannot obtain TGT for %s", targetAccount, impersonateUser)
 		result.DelegationFlags = append(result.DelegationFlags, "S4U2Self_FAILED")
 	}
 
 	// Simulate S4U2Proxy request
 	if len(result.AllowedToActOn) > 0 {
-		log.Printf("✅ S4U2Proxy simulation: %s can impersonate %s to delegated services", targetAccount, impersonateUser)
+		log.Printf("[+] S4U2Proxy simulation: %s can impersonate %s to delegated services", targetAccount, impersonateUser)
 		result.DelegationFlags = append(result.DelegationFlags, "S4U2Proxy_SUCCESS")
 	} else {
-		log.Printf("❌ S4U2Proxy simulation: %s cannot impersonate %s to delegated services", targetAccount, impersonateUser)
+		log.Printf("[!] S4U2Proxy simulation: %s cannot impersonate %s to delegated services", targetAccount, impersonateUser)
 		result.DelegationFlags = append(result.DelegationFlags, "S4U2Proxy_FAILED")
 	}
 

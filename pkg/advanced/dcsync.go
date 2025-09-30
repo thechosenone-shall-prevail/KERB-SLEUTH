@@ -36,11 +36,11 @@ func NewDCSyncAnalyzer(client *krb.LDAPClient, auditMode bool) *DCSyncAnalyzer {
 
 // EnumerateReplicationRights enumerates accounts with replication rights
 func (da *DCSyncAnalyzer) EnumerateReplicationRights() ([]*DCSyncResult, error) {
-	log.Printf("🔍 Enumerating accounts with replication rights...")
+	log.Printf("[*] Enumerating accounts with replication rights...")
 
 	// Check if client is available
 	if da.Client == nil || da.Client.GetConnection() == nil {
-		log.Printf("⚠️  LDAP client not available, returning empty results")
+		log.Printf("[x] LDAP client not available, returning empty results")
 		return []*DCSyncResult{}, nil
 	}
 
@@ -75,7 +75,7 @@ func (da *DCSyncAnalyzer) EnumerateReplicationRights() ([]*DCSyncResult, error) 
 	for _, entry := range sr.Entries {
 		result, err := da.analyzeReplicationRights(entry)
 		if err != nil {
-			log.Printf("⚠️  Failed to analyze account %s: %v", entry.DN, err)
+			log.Printf("[x] Failed to analyze account %s: %v", entry.DN, err)
 			continue
 		}
 		if len(result.ReplicationRights) > 0 {
@@ -88,7 +88,7 @@ func (da *DCSyncAnalyzer) EnumerateReplicationRights() ([]*DCSyncResult, error) 
 
 // CheckSpecificAccount checks replication rights for specific account
 func (da *DCSyncAnalyzer) CheckSpecificAccount(accountName string) (*DCSyncResult, error) {
-	log.Printf("🎯 Checking replication rights for: %s", accountName)
+	log.Printf("[*] Checking replication rights for: %s", accountName)
 
 	searchFilter := fmt.Sprintf("(sAMAccountName=%s)", accountName)
 	searchRequest := ldap.NewSearchRequest(

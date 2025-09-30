@@ -76,7 +76,7 @@ func (bhe *BloodHoundExporter) AddUser(username, distinguishedName string, isAdm
 	}
 
 	bhe.Nodes[nodeID] = node
-	log.Printf("📊 Added user to BloodHound: %s", username)
+	log.Printf("[+] Added user to BloodHound: %s", username)
 }
 
 // AddComputer adds a computer to the BloodHound dataset
@@ -121,7 +121,7 @@ func (bhe *BloodHoundExporter) AddGroup(groupName, distinguishedName string, isH
 	}
 
 	bhe.Nodes[nodeID] = node
-	log.Printf("📊 Added group to BloodHound: %s", groupName)
+	log.Printf("[+] Added group to BloodHound: %s", groupName)
 }
 
 // AddRBCDRelationship adds RBCD relationship
@@ -139,7 +139,7 @@ func (bhe *BloodHoundExporter) AddRBCDRelationship(sourceUser, targetComputer st
 	}
 
 	bhe.Edges = append(bhe.Edges, edge)
-	log.Printf("📊 Added RBCD relationship: %s -> %s", sourceUser, targetComputer)
+	log.Printf("[+] Added RBCD relationship: %s -> %s", sourceUser, targetComputer)
 }
 
 // AddS4URelationship adds S4U delegation relationship
@@ -157,7 +157,7 @@ func (bhe *BloodHoundExporter) AddS4URelationship(sourceUser, targetService stri
 	}
 
 	bhe.Edges = append(bhe.Edges, edge)
-	log.Printf("📊 Added S4U relationship: %s -> %s", sourceUser, targetService)
+	log.Printf("[+] Added S4U relationship: %s -> %s", sourceUser, targetService)
 }
 
 // AddGroupMembership adds group membership relationship
@@ -175,7 +175,7 @@ func (bhe *BloodHoundExporter) AddGroupMembership(user, group string) {
 	}
 
 	bhe.Edges = append(bhe.Edges, edge)
-	log.Printf("📊 Added group membership: %s -> %s", user, group)
+	log.Printf("[+] Added group membership: %s -> %s", user, group)
 }
 
 // AddSPN adds Service Principal Name to a user
@@ -185,7 +185,7 @@ func (bhe *BloodHoundExporter) AddSPN(username, spn string) {
 	if node, exists := bhe.Nodes[nodeID]; exists {
 		node.Properties["hasspn"] = true
 		node.Properties["serviceprincipalnames"] = []string{spn}
-		log.Printf("📊 Added SPN to user: %s -> %s", username, spn)
+		log.Printf("[+] Added SPN to user: %s -> %s", username, spn)
 	}
 }
 
@@ -212,12 +212,12 @@ func (bhe *BloodHoundExporter) AddAttackPath(path []string, attackType string) {
 		bhe.Edges = append(bhe.Edges, edge)
 	}
 
-	log.Printf("📊 Added attack path: %s", attackType)
+	log.Printf("[+] Added attack path: %s", attackType)
 }
 
 // ExportToBloodHound exports data to BloodHound format
 func (bhe *BloodHoundExporter) ExportToBloodHound(outputFile string) error {
-	log.Printf("📊 Exporting BloodHound data to: %s", outputFile)
+	log.Printf("[*] Exporting BloodHound data to: %s", outputFile)
 
 	// Convert nodes map to slice
 	nodes := make([]BloodHoundNode, 0, len(bhe.Nodes))
@@ -256,13 +256,13 @@ func (bhe *BloodHoundExporter) ExportToBloodHound(outputFile string) error {
 		return fmt.Errorf("failed to write BloodHound file: %v", err)
 	}
 
-	log.Printf("✅ BloodHound data exported successfully: %d nodes, %d edges", len(nodes), len(bhe.Edges))
+	log.Printf("[+] BloodHound data exported successfully: %d nodes, %d edges", len(nodes), len(bhe.Edges))
 	return nil
 }
 
 // GenerateAttackPaths generates common attack paths from Kerberos analysis
 func (bhe *BloodHoundExporter) GenerateAttackPaths(kerberosResults []krb.Candidate) {
-	log.Printf("🔍 Generating attack paths from Kerberos analysis...")
+	log.Printf("[*] Generating attack paths from Kerberos analysis...")
 
 	for _, candidate := range kerberosResults {
 		switch candidate.Type {
@@ -289,7 +289,7 @@ func (bhe *BloodHoundExporter) GenerateAttackPaths(kerberosResults []krb.Candida
 		}
 	}
 
-	log.Printf("✅ Generated attack paths from Kerberos analysis")
+	log.Printf("[+] Generated attack paths from Kerberos analysis")
 }
 
 // Helper functions

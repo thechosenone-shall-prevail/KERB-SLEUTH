@@ -37,11 +37,11 @@ func NewRBCDAnalyzer(client *krb.LDAPClient, auditMode bool) *RBCDAnalyzer {
 
 // EnumerateRBCDTargets enumerates all objects with RBCD configurations
 func (ra *RBCDAnalyzer) EnumerateRBCDTargets() ([]*RBCDResult, error) {
-	log.Printf("🔍 Enumerating RBCD targets...")
+	log.Printf("[*] Enumerating RBCD targets...")
 
 	// Check if client is available
 	if ra.Client == nil || ra.Client.GetConnection() == nil {
-		log.Printf("⚠️  LDAP client not available, returning empty results")
+		log.Printf("[!] LDAP client not available, returning empty results")
 		return []*RBCDResult{}, nil
 	}
 
@@ -77,7 +77,7 @@ func (ra *RBCDAnalyzer) EnumerateRBCDTargets() ([]*RBCDResult, error) {
 	for _, entry := range sr.Entries {
 		result, err := ra.analyzeRBCDTarget(entry)
 		if err != nil {
-			log.Printf("⚠️  Failed to analyze RBCD target %s: %v", entry.DN, err)
+			log.Printf("[x] Failed to analyze RBCD target %s: %v", entry.DN, err)
 			continue
 		}
 		results = append(results, result)
@@ -88,7 +88,7 @@ func (ra *RBCDAnalyzer) EnumerateRBCDTargets() ([]*RBCDResult, error) {
 
 // AnalyzeSpecificTarget analyzes RBCD configuration for a specific target
 func (ra *RBCDAnalyzer) AnalyzeSpecificTarget(targetDN string) (*RBCDResult, error) {
-	log.Printf("🎯 Analyzing specific RBCD target: %s", targetDN)
+	log.Printf("[*] Analyzing specific RBCD target: %s", targetDN)
 
 	searchRequest := ldap.NewSearchRequest(
 		targetDN,

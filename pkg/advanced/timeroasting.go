@@ -46,7 +46,7 @@ func NewTimeroastAnalyzer(passive, active bool, outputDir string) *TimeroastAnal
 
 // AnalyzeKirbiFile parses a .kirbi file and extracts timeroasting metadata
 func (ta *TimeroastAnalyzer) AnalyzeKirbiFile(kirbiPath string) (*TimeroastResult, error) {
-	log.Printf("🔍 Analyzing Kirbi file: %s", kirbiPath)
+	log.Printf("[*] Analyzing Kirbi file: %s", kirbiPath)
 
 	data, err := os.ReadFile(kirbiPath)
 	if err != nil {
@@ -68,13 +68,13 @@ func (ta *TimeroastAnalyzer) AnalyzeKirbiFile(kirbiPath string) (*TimeroastResul
 	result.Hash = hash
 	result.HashType = "timeroast"
 
-	log.Printf("✅ Successfully analyzed kirbi file: %s", kirbiPath)
+	log.Printf("[+] Successfully analyzed kirbi file: %s", kirbiPath)
 	return result, nil
 }
 
 // AnalyzeTicketCache analyzes Kerberos ticket cache files
 func (ta *TimeroastAnalyzer) AnalyzeTicketCache(cachePath string) ([]*TimeroastResult, error) {
-	log.Printf("🔍 Analyzing ticket cache: %s", cachePath)
+	log.Printf("[*] Analyzing ticket cache: %s", cachePath)
 
 	var results []*TimeroastResult
 
@@ -88,7 +88,7 @@ func (ta *TimeroastAnalyzer) AnalyzeTicketCache(cachePath string) ([]*TimeroastR
 		for _, file := range files {
 			result, err := ta.AnalyzeKirbiFile(file)
 			if err != nil {
-				log.Printf("⚠️  Failed to analyze %s: %v", file, err)
+				log.Printf("[x] Failed to analyze %s: %v", file, err)
 				continue
 			}
 			results = append(results, result)
@@ -111,17 +111,17 @@ func (ta *TimeroastAnalyzer) RequestTicketsUnderSPN(client *krb.LDAPClient, spns
 		return nil, fmt.Errorf("active mode not enabled")
 	}
 
-	log.Printf("🎯 Requesting tickets for %d SPNs in active mode", len(spns))
+	log.Printf("[*] Requesting tickets for %d SPNs in active mode", len(spns))
 
 	var results []*TimeroastResult
 
 	for _, spn := range spns {
-		log.Printf("🎟️  Requesting ticket for SPN: %s", spn)
+		log.Printf("[*] Requesting ticket for SPN: %s", spn)
 
 		// Simulate ticket request (real implementation would use Kerberos protocol)
 		result, err := ta.simulateTicketRequest(spn)
 		if err != nil {
-			log.Printf("⚠️  Failed to request ticket for %s: %v", spn, err)
+			log.Printf("[x] Failed to request ticket for %s: %v", spn, err)
 			continue
 		}
 
@@ -198,7 +198,7 @@ func (ta *TimeroastAnalyzer) ExportTimeroastHashes(results []*TimeroastResult) e
 		return fmt.Errorf("failed to write cracking guide: %v", err)
 	}
 
-	log.Printf("📄 Exported %d timeroasting hashes to %s", len(results), ta.OutputDir)
+	log.Printf("[+] Exported %d timeroasting hashes to %s", len(results), ta.OutputDir)
 	return nil
 }
 
@@ -267,7 +267,7 @@ func (ta *TimeroastAnalyzer) convertToCrackableFormat(result *TimeroastResult) (
 
 func (ta *TimeroastAnalyzer) simulateTicketRequest(spn string) (*TimeroastResult, error) {
 	// Simulate ticket request - real implementation would use Kerberos protocol
-	log.Printf("🎟️  Simulating ticket request for SPN: %s", spn)
+	log.Printf("[*] Simulating ticket request for SPN: %s", spn)
 
 	result := &TimeroastResult{
 		Username:       "current_user",

@@ -105,14 +105,14 @@ func (cpb *CrossPlatformBuilder) BuildAll() error {
 		log.Printf("🔨 Building for %s/%s...", target.OS, target.Arch)
 
 		if err := cpb.buildTarget(target); err != nil {
-			log.Printf("⚠️  Failed to build for %s/%s: %v", target.OS, target.Arch, err)
+			log.Printf("[x] Failed to build for %s/%s: %v", target.OS, target.Arch, err)
 			continue
 		}
 
-		log.Printf("✅ Built successfully: %s", target.Name)
+		log.Printf("[+] Built successfully: %s", target.Name)
 	}
 
-	log.Printf("✅ Cross-platform build completed")
+	log.Printf("[+] Cross-platform build completed")
 	return nil
 }
 
@@ -160,7 +160,7 @@ func (cpb *CrossPlatformBuilder) buildTarget(target BuildTarget) error {
 // InstallDependencies installs platform-specific dependencies
 func InstallDependencies() error {
 	info := GetPlatformInfo()
-	log.Printf("📦 Installing dependencies for %s/%s", info.OS, info.Architecture)
+	log.Printf("[*] Installing dependencies for %s/%s", info.OS, info.Architecture)
 
 	switch info.OS {
 	case "windows":
@@ -176,11 +176,11 @@ func InstallDependencies() error {
 
 // installWindowsDependencies installs Windows dependencies
 func installWindowsDependencies() error {
-	log.Printf("📦 Installing Windows dependencies...")
+	log.Printf("[*] Installing Windows dependencies...")
 
 	// Check if Chocolatey is installed
 	if !isCommandAvailable("choco") {
-		log.Printf("⚠️  Chocolatey not found. Installing...")
+		log.Printf("[!] Chocolatey not found. Installing...")
 		if err := installChocolatey(); err != nil {
 			return fmt.Errorf("failed to install Chocolatey: %v", err)
 		}
@@ -195,24 +195,24 @@ func installWindowsDependencies() error {
 	}
 
 	for _, dep := range dependencies {
-		log.Printf("📦 Installing %s...", dep)
+		log.Printf("[*] Installing %s...", dep)
 		cmd := exec.Command("choco", "install", dep, "-y")
 		if err := cmd.Run(); err != nil {
-			log.Printf("⚠️  Failed to install %s: %v", dep, err)
+			log.Printf("[x] Failed to install %s: %v", dep, err)
 		}
 	}
 
-	log.Printf("✅ Windows dependencies installed")
+	log.Printf("[+] Windows dependencies installed")
 	return nil
 }
 
 // installLinuxDependencies installs Linux dependencies
 func installLinuxDependencies() error {
-	log.Printf("📦 Installing Linux dependencies...")
+	log.Printf("[*] Installing Linux dependencies...")
 
 	// Detect package manager
 	packageManager := getLinuxPackageManager()
-	log.Printf("📦 Using package manager: %s", packageManager)
+	log.Printf("[!] Using package manager: %s", packageManager)
 
 	// Install dependencies
 	dependencies := []string{
@@ -224,7 +224,7 @@ func installLinuxDependencies() error {
 	}
 
 	for _, dep := range dependencies {
-		log.Printf("📦 Installing %s...", dep)
+		log.Printf("[*] Installing %s...", dep)
 		var cmd *exec.Cmd
 
 		switch packageManager {
@@ -239,26 +239,26 @@ func installLinuxDependencies() error {
 		case "pacman":
 			cmd = exec.Command("sudo", "pacman", "-S", "--noconfirm", dep)
 		default:
-			log.Printf("⚠️  Unknown package manager: %s", packageManager)
+			log.Printf("[!] Unknown package manager: %s", packageManager)
 			continue
 		}
 
 		if err := cmd.Run(); err != nil {
-			log.Printf("⚠️  Failed to install %s: %v", dep, err)
+			log.Printf("[x] Failed to install %s: %v", dep, err)
 		}
 	}
 
-	log.Printf("✅ Linux dependencies installed")
+	log.Printf("[+] Linux dependencies installed")
 	return nil
 }
 
 // installDarwinDependencies installs macOS dependencies
 func installDarwinDependencies() error {
-	log.Printf("📦 Installing macOS dependencies...")
+	log.Printf("[*] Installing macOS dependencies...")
 
 	// Check if Homebrew is installed
 	if !isCommandAvailable("brew") {
-		log.Printf("⚠️  Homebrew not found. Installing...")
+		log.Printf("[!] Homebrew not found. Installing...")
 		if err := installHomebrew(); err != nil {
 			return fmt.Errorf("failed to install Homebrew: %v", err)
 		}
@@ -274,14 +274,14 @@ func installDarwinDependencies() error {
 	}
 
 	for _, dep := range dependencies {
-		log.Printf("📦 Installing %s...", dep)
+		log.Printf("[*] Installing %s...", dep)
 		cmd := exec.Command("brew", "install", dep)
 		if err := cmd.Run(); err != nil {
-			log.Printf("⚠️  Failed to install %s: %v", dep, err)
+			log.Printf("[x] Failed to install %s: %v", dep, err)
 		}
 	}
 
-	log.Printf("✅ macOS dependencies installed")
+	log.Printf("[+] macOS dependencies installed")
 	return nil
 }
 
@@ -354,7 +354,7 @@ func isCommandAvailable(command string) bool {
 }
 
 func installChocolatey() error {
-	log.Printf("📦 Installing Chocolatey...")
+	log.Printf("[*] Installing Chocolatey...")
 
 	cmd := exec.Command("powershell", "-Command",
 		"Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))")
@@ -363,7 +363,7 @@ func installChocolatey() error {
 }
 
 func installHomebrew() error {
-	log.Printf("📦 Installing Homebrew...")
+	log.Printf("[*] Installing Homebrew...")
 
 	cmd := exec.Command("/bin/bash", "-c",
 		"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)")
@@ -373,7 +373,7 @@ func installHomebrew() error {
 
 // CreateInstallScripts creates platform-specific install scripts
 func CreateInstallScripts() error {
-	log.Printf("📝 Creating platform-specific install scripts...")
+	log.Printf("[*] Creating platform-specific install scripts...")
 
 	// Windows install script
 	windowsScript := `@echo off
@@ -505,6 +505,6 @@ echo "You can now run: kerb-sleuth --help"
 		return fmt.Errorf("failed to create macOS install script: %v", err)
 	}
 
-	log.Printf("✅ Platform-specific install scripts created")
+	log.Printf("[+] Platform-specific install scripts created")
 	return nil
 }

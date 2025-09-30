@@ -86,7 +86,7 @@ func (ta *TicketAnalyzer) AnalyzeTicket(ticketData []byte, ticketType string) (*
 		}
 	}
 
-	log.Printf("✅ Ticket analysis completed for %s ticket", ticketType)
+	log.Printf("[+] Ticket analysis completed for %s ticket", ticketType)
 	return result, nil
 }
 
@@ -109,7 +109,7 @@ func (ta *TicketAnalyzer) GenerateGoldenTicket(krbtgtHash, domain, username stri
 		return nil, fmt.Errorf("Golden ticket generation requires dangerous mode")
 	}
 
-	log.Printf("⚠️  DANGEROUS: Simulating Golden ticket generation for %s@%s", username, domain)
+	log.Printf("[!] DANGEROUS: Simulating Golden ticket generation for %s@%s", username, domain)
 
 	result := &TicketResult{
 		TicketType:     "Golden",
@@ -153,7 +153,7 @@ func (ta *TicketAnalyzer) GenerateGoldenTicket(krbtgtHash, domain, username stri
 	result.Metadata["generated_at"] = now.Format(time.RFC3339)
 	result.Metadata["dangerous_operation"] = true
 
-	log.Printf("⚠️  Golden ticket simulation completed for %s@%s", username, domain)
+	log.Printf("[+] Golden ticket simulation completed for %s@%s", username, domain)
 	return result, nil
 }
 
@@ -163,7 +163,7 @@ func (ta *TicketAnalyzer) GenerateSilverTicket(serviceHash, domain, serviceAccou
 		return nil, fmt.Errorf("Silver ticket generation requires dangerous mode")
 	}
 
-	log.Printf("⚠️  DANGEROUS: Simulating Silver ticket generation for %s", targetService)
+	log.Printf("[!] DANGEROUS: Simulating Silver ticket generation for %s", targetService)
 
 	result := &TicketResult{
 		TicketType:     "Silver",
@@ -207,7 +207,7 @@ func (ta *TicketAnalyzer) GenerateSilverTicket(serviceHash, domain, serviceAccou
 	result.Metadata["generated_at"] = now.Format(time.RFC3339)
 	result.Metadata["dangerous_operation"] = true
 
-	log.Printf("⚠️  Silver ticket simulation completed for %s", targetService)
+	log.Printf("[+] Silver ticket simulation completed for %s", targetService)
 	return result, nil
 }
 
@@ -267,7 +267,7 @@ func (ta *TicketAnalyzer) ExportTicketHashes(results []*TicketResult, outputDir 
 		return fmt.Errorf("ticket hash export requires dangerous mode")
 	}
 
-	log.Printf("📄 Exporting %d ticket hashes to %s", len(results), outputDir)
+	log.Printf("[+] Exporting %d ticket hashes to %s", len(results), outputDir)
 
 	// Export hashes
 	hashFile := fmt.Sprintf("%s/ticket_hashes.txt", outputDir)

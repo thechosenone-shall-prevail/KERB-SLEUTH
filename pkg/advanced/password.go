@@ -96,7 +96,7 @@ func (pma *PasswordModificationAnalyzer) SimulatePasswordChange(targetAccount, n
 		return nil, fmt.Errorf("password change simulation requires audit mode")
 	}
 
-	log.Printf("⚠️  SIMULATION: Password change for %s", targetAccount)
+	log.Printf("[!] SIMULATION: Password change for %s", targetAccount)
 
 	result, err := pma.AnalyzePasswordModification(targetAccount)
 	if err != nil {
@@ -108,7 +108,7 @@ func (pma *PasswordModificationAnalyzer) SimulatePasswordChange(targetAccount, n
 	result.ModificationPath = append(result.ModificationPath, "SIMULATION: Update pwdLastSet timestamp")
 	result.ModificationPath = append(result.ModificationPath, "SIMULATION: Log password change event")
 
-	log.Printf("✅ Password change simulation completed for %s", targetAccount)
+	log.Printf("[+] Password change simulation completed for %s", targetAccount)
 	return result, nil
 }
 

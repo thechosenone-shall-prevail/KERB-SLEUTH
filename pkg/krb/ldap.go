@@ -304,13 +304,13 @@ type DomainInfo struct {
 
 // ExtractASREPHash performs AS-REP roasting attack for a user
 func (c *LDAPClient) ExtractASREPHash(username, domain string) (*HashResult, error) {
-	log.Printf("🎯 Attempting AS-REP roasting for %s@%s", username, domain)
+	log.Printf("[*] Attempting AS-REP roasting for %s@%s", username, domain)
 
 	// TODO: Implement real Kerberos AS-REQ/AS-REP protocol
 	// For now, generate a realistic hash format for testing
 	hash := generateAdvancedASREPHash(username, domain)
 
-	log.Printf("✅ Extracted AS-REP hash for %s@%s", username, domain)
+	log.Printf("[+] Extracted AS-REP hash for %s@%s", username, domain)
 
 	return &HashResult{
 		Username: username,
@@ -322,13 +322,13 @@ func (c *LDAPClient) ExtractASREPHash(username, domain string) (*HashResult, err
 
 // ExtractKerberoastHash performs Kerberoasting attack for a service
 func (c *LDAPClient) ExtractKerberoastHash(username, domain, spn string) (*HashResult, error) {
-	log.Printf("🎯 Attempting Kerberoasting for %s@%s (SPN: %s)", username, domain, spn)
+	log.Printf("[*] Attempting Kerberoasting for %s@%s (SPN: %s)", username, domain, spn)
 
 	// TODO: Implement real Kerberos TGS-REQ/TGS-REP protocol
 	// For now, generate a realistic hash format for testing
 	hash := generateAdvancedKerberoastHash(username, domain, spn)
 
-	log.Printf("✅ Extracted Kerberoast hash for %s@%s", username, domain)
+	log.Printf("[+] Extracted Kerberoast hash for %s@%s", username, domain)
 
 	return &HashResult{
 		Username: username,

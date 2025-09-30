@@ -69,7 +69,7 @@ func NewStealthClient(config *StealthConfig) (*StealthClient, error) {
 			return nil, fmt.Errorf("invalid proxy URL: %v", err)
 		}
 		transport.Proxy = http.ProxyURL(proxyURL)
-		log.Printf("🔒 Using proxy: %s", config.ProxyURL)
+		log.Printf("[*] Using proxy: %s", config.ProxyURL)
 	}
 
 	client := &http.Client{
@@ -107,7 +107,7 @@ func (sc *StealthClient) ApplyStealthDelay() {
 		delay += time.Duration(jitterMs) * time.Millisecond
 	}
 
-	log.Printf("⏱️  Applying stealth delay: %v", delay)
+	log.Printf("[!] Applying stealth delay: %v", delay)
 	time.Sleep(delay)
 }
 
@@ -126,7 +126,7 @@ func (sc *StealthClient) RandomizeUserAgent() string {
 	}
 
 	selected := userAgents[randInt(len(userAgents))]
-	log.Printf("🎭 Randomized User-Agent: %s", selected[:50]+"...")
+	log.Printf("[!] Randomized User-Agent: %s", selected[:50]+"...")
 	return selected
 }
 
@@ -169,12 +169,12 @@ func (sc *StealthClient) ExecuteWithRetry(req *http.Request) (*http.Response, er
 
 		resp, err := sc.HTTPClient.Do(req)
 		if err == nil {
-			log.Printf("✅ Request successful (attempt %d)", attempt)
+			log.Printf("[+] Request successful (attempt %d)", attempt)
 			return resp, nil
 		}
 
 		lastErr = err
-		log.Printf("⚠️  Request failed (attempt %d): %v", attempt, err)
+		log.Printf("[-] Request failed (attempt %d): %v", attempt, err)
 
 		// Wait before retry
 		if attempt < sc.Config.MaxRetries {
@@ -203,7 +203,7 @@ func (slc *StealthLDAPClient) ApplyLDAPStealth(operation string) {
 		return
 	}
 
-	log.Printf("🔒 Applying LDAP stealth for operation: %s", operation)
+	log.Printf("[+] Applying LDAP stealth for operation: %s", operation)
 
 	// Apply random delay
 	if slc.Config.RandomDelay {
@@ -230,7 +230,7 @@ func (sc *StealthClient) AntiDetectionTechniques() {
 		return
 	}
 
-	log.Printf("🛡️  Applying anti-detection techniques...")
+	log.Printf("[+] Applying anti-detection techniques...")
 
 	// Randomize request patterns
 	techniques := []string{

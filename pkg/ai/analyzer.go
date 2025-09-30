@@ -73,7 +73,7 @@ func NewAIRiskAnalyzer() *AIRiskAnalyzer {
 
 // AnalyzeRisk performs AI-powered risk analysis
 func (ara *AIRiskAnalyzer) AnalyzeRisk(candidates []krb.Candidate) (*RiskScore, error) {
-	log.Printf("🤖 Performing AI-powered risk analysis on %d candidates", len(candidates))
+	log.Printf("[*] Performing AI-powered risk analysis on %d candidates", len(candidates))
 
 	// Calculate individual risk factors
 	factors := []RiskFactor{
@@ -106,13 +106,13 @@ func (ara *AIRiskAnalyzer) AnalyzeRisk(candidates []krb.Candidate) (*RiskScore, 
 		},
 	}
 
-	log.Printf("✅ AI risk analysis completed: %s (%.2f)", riskLevel, overallScore)
+	log.Printf("[+] AI risk analysis completed: %s (%.2f)", riskLevel, overallScore)
 	return riskScore, nil
 }
 
 // DetectAnomalies performs anomaly detection
 func (ara *AIRiskAnalyzer) DetectAnomalies(candidates []krb.Candidate) (*AnomalyDetection, error) {
-	log.Printf("🔍 Performing anomaly detection on %d candidates", len(candidates))
+	log.Printf("[*] Performing anomaly detection on %d candidates", len(candidates))
 
 	anomalies := []Anomaly{}
 
@@ -135,7 +135,7 @@ func (ara *AIRiskAnalyzer) DetectAnomalies(candidates []krb.Candidate) (*Anomaly
 		Confidence:    confidence,
 	}
 
-	log.Printf("✅ Anomaly detection completed: %d anomalies found", len(anomalies))
+	log.Printf("[+] Anomaly detection completed: %d anomalies found", len(anomalies))
 	return detection, nil
 }
 
@@ -316,25 +316,25 @@ func (ara *AIRiskAnalyzer) generateRecommendations(factors []RiskFactor, overall
 	recommendations := []string{}
 
 	if overallScore >= 0.8 {
-		recommendations = append(recommendations, "🚨 IMMEDIATE ACTION REQUIRED: Critical vulnerabilities detected")
-		recommendations = append(recommendations, "🔒 Enable pre-authentication for all user accounts")
-		recommendations = append(recommendations, "🛡️ Implement strong password policies")
-		recommendations = append(recommendations, "📊 Enable comprehensive logging and monitoring")
+		recommendations = append(recommendations, "[!] IMMEDIATE ACTION REQUIRED: Critical vulnerabilities detected")
+		recommendations = append(recommendations, "[!] Enable pre-authentication for all user accounts")
+		recommendations = append(recommendations, "[!] Implement strong password policies")
+		recommendations = append(recommendations, "[!] Enable comprehensive logging and monitoring")
 	}
 
 	if overallScore >= 0.6 {
-		recommendations = append(recommendations, "⚠️ HIGH PRIORITY: Address high-risk vulnerabilities")
-		recommendations = append(recommendations, "🔍 Review and remediate Kerberoasting vulnerabilities")
-		recommendations = append(recommendations, "🛡️ Implement additional security controls")
+		recommendations = append(recommendations, "[!] HIGH PRIORITY: Address high-risk vulnerabilities")
+		recommendations = append(recommendations, "[!] Review and remediate Kerberoasting vulnerabilities")
+		recommendations = append(recommendations, "[!] Implement additional security controls")
 	}
 
 	if overallScore >= 0.4 {
-		recommendations = append(recommendations, "📋 MEDIUM PRIORITY: Review security posture")
-		recommendations = append(recommendations, "🔍 Conduct regular security assessments")
+		recommendations = append(recommendations, "[!] MEDIUM PRIORITY: Review security posture")
+		recommendations = append(recommendations, "[!] Conduct regular security assessments")
 	}
 
-	recommendations = append(recommendations, "📚 Provide security awareness training")
-	recommendations = append(recommendations, "🔄 Implement regular security monitoring")
+	recommendations = append(recommendations, "[!] Provide security awareness training")
+	recommendations = append(recommendations, "[!] Implement regular security monitoring")
 
 	return recommendations
 }
@@ -532,7 +532,7 @@ func contains(slice []string, item string) bool {
 
 // ExportRiskAnalysis exports risk analysis to JSON
 func (ara *AIRiskAnalyzer) ExportRiskAnalysis(riskScore *RiskScore, outputFile string) error {
-	log.Printf("📊 Exporting AI risk analysis to: %s", outputFile)
+	log.Printf("[*] Exporting AI risk analysis to: %s", outputFile)
 
 	data, err := json.MarshalIndent(riskScore, "", "  ")
 	if err != nil {
@@ -544,13 +544,13 @@ func (ara *AIRiskAnalyzer) ExportRiskAnalysis(riskScore *RiskScore, outputFile s
 		return fmt.Errorf("failed to write risk analysis file: %v", err)
 	}
 
-	log.Printf("✅ AI risk analysis exported successfully")
+	log.Printf("[+] AI risk analysis exported successfully")
 	return nil
 }
 
 // ExportAnomalyDetection exports anomaly detection to JSON
 func (ara *AIRiskAnalyzer) ExportAnomalyDetection(detection *AnomalyDetection, outputFile string) error {
-	log.Printf("📊 Exporting anomaly detection to: %s", outputFile)
+	log.Printf("[*] Exporting anomaly detection to: %s", outputFile)
 
 	data, err := json.MarshalIndent(detection, "", "  ")
 	if err != nil {
@@ -562,6 +562,6 @@ func (ara *AIRiskAnalyzer) ExportAnomalyDetection(detection *AnomalyDetection, o
 		return fmt.Errorf("failed to write anomaly detection file: %v", err)
 	}
 
-	log.Printf("✅ Anomaly detection exported successfully")
+	log.Printf("[+] Anomaly detection exported successfully")
 	return nil
 }

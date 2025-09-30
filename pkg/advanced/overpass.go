@@ -43,7 +43,7 @@ func NewOverpassAnalyzer(client *krb.LDAPClient, auditMode bool) *OverpassAnalyz
 
 // ProcessNTLMHash processes an NTLM hash for Overpass-the-Hash attack
 func (oa *OverpassAnalyzer) ProcessNTLMHash(username, domain, ntlmHash string) (*OverpassResult, error) {
-	log.Printf("🔑 Processing NTLM hash for Overpass-the-Hash: %s@%s", username, domain)
+	log.Printf("[*] Processing NTLM hash for Overpass-the-Hash: %s@%s", username, domain)
 
 	if !oa.AuditMode {
 		return nil, fmt.Errorf("Overpass-the-Hash requires audit mode")
@@ -76,7 +76,7 @@ func (oa *OverpassAnalyzer) ProcessNTLMHash(username, domain, ntlmHash string) (
 	// Simulate TGT generation
 	tgtGenerated, err := oa.simulateTGTGeneration(result)
 	if err != nil {
-		log.Printf("⚠️  TGT generation simulation failed: %v", err)
+		log.Printf("[x] TGT generation simulation failed: %v", err)
 	} else {
 		result.TGTGenerated = tgtGenerated
 	}
@@ -84,7 +84,7 @@ func (oa *OverpassAnalyzer) ProcessNTLMHash(username, domain, ntlmHash string) (
 	// Simulate TGS generation
 	tgsGenerated, err := oa.simulateTGSGeneration(result)
 	if err != nil {
-		log.Printf("⚠️  TGS generation simulation failed: %v", err)
+		log.Printf("[x] TGS generation simulation failed: %v", err)
 	} else {
 		result.TGSGenerated = tgsGenerated
 	}
@@ -101,13 +101,13 @@ func (oa *OverpassAnalyzer) ProcessNTLMHash(username, domain, ntlmHash string) (
 	result.Metadata["hash_length"] = len(ntlmHash)
 	result.Metadata["domain_controller"] = oa.DomainInfo.DNSHostName
 
-	log.Printf("✅ Overpass-the-Hash processing completed for %s@%s", username, domain)
+	log.Printf("[+] Overpass-the-Hash processing completed for %s@%s", username, domain)
 	return result, nil
 }
 
 // BatchProcessHashes processes multiple NTLM hashes
 func (oa *OverpassAnalyzer) BatchProcessHashes(hashes map[string]string) ([]*OverpassResult, error) {
-	log.Printf("🔑 Batch processing %d NTLM hashes", len(hashes))
+	log.Printf("[*] Batch processing %d NTLM hashes", len(hashes))
 
 	var results []*OverpassResult
 	for username, ntlmHash := range hashes {
@@ -116,7 +116,7 @@ func (oa *OverpassAnalyzer) BatchProcessHashes(hashes map[string]string) ([]*Ove
 		if len(parts) == 2 {
 			result, err := oa.ProcessNTLMHash(parts[0], parts[1], ntlmHash)
 			if err != nil {
-				log.Printf("⚠️  Failed to process hash for %s: %v", username, err)
+				log.Printf("[x] Failed to process hash for %s: %v", username, err)
 				continue
 			}
 			results = append(results, result)
@@ -124,7 +124,7 @@ func (oa *OverpassAnalyzer) BatchProcessHashes(hashes map[string]string) ([]*Ove
 			// Use default domain
 			result, err := oa.ProcessNTLMHash(username, oa.DomainInfo.DomainName, ntlmHash)
 			if err != nil {
-				log.Printf("⚠️  Failed to process hash for %s: %v", username, err)
+				log.Printf("[x] Failed to process hash for %s: %v", username, err)
 				continue
 			}
 			results = append(results, result)
@@ -215,7 +215,7 @@ func (oa *OverpassAnalyzer) ExportOverpassHashes(results []*OverpassResult, outp
 		return fmt.Errorf("no Overpass-the-Hash results to export")
 	}
 
-	log.Printf("📄 Exporting %d Overpass-the-Hash results to %s", len(results), outputDir)
+	log.Printf("[+] Exporting %d Overpass-the-Hash results to %s", len(results), outputDir)
 
 	// Export Kerberos hashes
 	hashFile := fmt.Sprintf("%s/overpass_hashes.txt", outputDir)
@@ -261,7 +261,7 @@ func (oa *OverpassAnalyzer) validateNTLMHash(hash string) (string, error) {
 }
 
 func (oa *OverpassAnalyzer) simulateTGTGeneration(result *OverpassResult) (bool, error) {
-	log.Printf("🎟️  Simulating TGT generation for %s@%s", result.Username, result.Domain)
+	log.Printf("[*] Simulating TGT generation for %s@%s", result.Username, result.Domain)
 
 	// Simulate TGT generation process
 	// Real implementation would use actual Kerberos protocol
@@ -273,12 +273,12 @@ func (oa *OverpassAnalyzer) simulateTGTGeneration(result *OverpassResult) (bool,
 	}
 
 	// Simulate successful TGT generation
-	log.Printf("✅ TGT generation simulation successful for %s@%s", result.Username, result.Domain)
+	log.Printf("[+] TGT generation simulation successful for %s@%s", result.Username, result.Domain)
 	return true, nil
 }
 
 func (oa *OverpassAnalyzer) simulateTGSGeneration(result *OverpassResult) (bool, error) {
-	log.Printf("🎟️  Simulating TGS generation for %s@%s", result.Username, result.Domain)
+	log.Printf("[*] Simulating TGS generation for %s@%s", result.Username, result.Domain)
 
 	// Simulate TGS generation process
 	// Real implementation would use actual Kerberos protocol
@@ -288,7 +288,7 @@ func (oa *OverpassAnalyzer) simulateTGSGeneration(result *OverpassResult) (bool,
 	}
 
 	// Simulate successful TGS generation
-	log.Printf("✅ TGS generation simulation successful for %s@%s", result.Username, result.Domain)
+	log.Printf("[+] TGS generation simulation successful for %s@%s", result.Username, result.Domain)
 	return true, nil
 }
 

@@ -54,29 +54,29 @@ func NewKerberosClient(domain, kdcAddress string) (*KerberosClient, error) {
 
 // AuthenticateWithPassword authenticates using username/password
 func (kc *KerberosClient) AuthenticateWithPassword(username, password string) error {
-	log.Printf("🔐 Authenticating %s@%s with password", username, kc.Domain)
+	log.Printf("[+] Authenticating %s@%s with password", username, kc.Domain)
 
 	// This is a simplified implementation
 	// Real implementation would use the gokrb5 library properly
 
-	log.Printf("✅ Successfully authenticated %s@%s", username, kc.Domain)
+	log.Printf("[+] Successfully authenticated %s@%s", username, kc.Domain)
 	return nil
 }
 
 // AuthenticateWithKeytab authenticates using keytab file
 func (kc *KerberosClient) AuthenticateWithKeytab(username, keytabPath string) error {
-	log.Printf("🔐 Authenticating %s@%s with keytab", username, kc.Domain)
+	log.Printf("[+] Authenticating %s@%s with keytab", username, kc.Domain)
 
 	// This is a simplified implementation
 	// Real implementation would use the gokrb5 library properly
 
-	log.Printf("✅ Successfully authenticated %s@%s with keytab", username, kc.Domain)
+	log.Printf("[+] Successfully authenticated %s@%s with keytab", username, kc.Domain)
 	return nil
 }
 
 // RequestTGT requests a Ticket Granting Ticket
 func (kc *KerberosClient) RequestTGT(username string) (*messages.Ticket, error) {
-	log.Printf("🎟️  Requesting TGT for %s@%s", username, kc.Domain)
+	log.Printf("[+] Requesting TGT for %s@%s", username, kc.Domain)
 
 	// This is a simplified implementation
 	// Real implementation would request actual TGT
@@ -94,13 +94,13 @@ func (kc *KerberosClient) RequestTGT(username string) (*messages.Ticket, error) 
 		},
 	}
 
-	log.Printf("✅ Successfully obtained TGT for %s@%s", username, kc.Domain)
+	log.Printf("[+] Successfully obtained TGT for %s@%s", username, kc.Domain)
 	return ticket, nil
 }
 
 // RequestTGS requests a Ticket Granting Service ticket
 func (kc *KerberosClient) RequestTGS(spn string) (*messages.Ticket, error) {
-	log.Printf("🎟️  Requesting TGS for SPN: %s", spn)
+	log.Printf("[+] Requesting TGS for SPN: %s", spn)
 
 	// This is a simplified implementation
 	// Real implementation would request actual TGS
@@ -118,13 +118,13 @@ func (kc *KerberosClient) RequestTGS(spn string) (*messages.Ticket, error) {
 		},
 	}
 
-	log.Printf("✅ Successfully obtained TGS for %s", spn)
+	log.Printf("[+] Successfully obtained TGS for %s", spn)
 	return ticket, nil
 }
 
 // ExtractASREPHash extracts real AS-REP hash for cracking
 func (kc *KerberosClient) ExtractASREPHash(username string) (string, error) {
-	log.Printf("🔍 Extracting AS-REP hash for %s@%s", username, kc.Domain)
+	log.Printf("[*] Extracting AS-REP hash for %s@%s", username, kc.Domain)
 
 	// This is a simplified implementation
 	// Real implementation would create and send AS-REQ
@@ -132,13 +132,13 @@ func (kc *KerberosClient) ExtractASREPHash(username string) (string, error) {
 	hash := fmt.Sprintf("$krb5asrep$23$%s@%s:simulated_hash$additional_data",
 		username, kc.Domain)
 
-	log.Printf("✅ AS-REP hash extracted for %s@%s", username, kc.Domain)
+	log.Printf("[+] AS-REP hash extracted for %s@%s", username, kc.Domain)
 	return hash, nil
 }
 
 // ExtractKerberoastHash extracts real Kerberoast hash for cracking
 func (kc *KerberosClient) ExtractKerberoastHash(username, spn string) (string, error) {
-	log.Printf("🔍 Extracting Kerberoast hash for %s@%s (SPN: %s)", username, kc.Domain, spn)
+	log.Printf("[*] Extracting Kerberoast hash for %s@%s (SPN: %s)", username, kc.Domain, spn)
 
 	// This is a simplified implementation
 	// Real implementation would request TGS ticket
@@ -146,7 +146,7 @@ func (kc *KerberosClient) ExtractKerberoastHash(username, spn string) (string, e
 	hash := fmt.Sprintf("$krb5tgs$23$*%s$%s$%s*$simulated_hash$additional_data",
 		username, kc.Domain, spn)
 
-	log.Printf("✅ Kerberoast hash extracted for %s@%s", username, kc.Domain)
+	log.Printf("[+] Kerberoast hash extracted for %s@%s", username, kc.Domain)
 	return hash, nil
 }
 
@@ -197,7 +197,7 @@ func (kc *KerberosClient) formatKerberoastHash(username, spn string, tgs *messag
 
 // ParseKirbiFile parses a .kirbi file (Kerberos ticket file)
 func (kc *KerberosClient) ParseKirbiFile(kirbiPath string) (*messages.Ticket, error) {
-	log.Printf("🔍 Parsing Kirbi file: %s", kirbiPath)
+	log.Printf("[*] Parsing Kirbi file: %s", kirbiPath)
 
 	// This is a simplified implementation
 	// Real implementation would parse actual .kirbi files
@@ -215,13 +215,13 @@ func (kc *KerberosClient) ParseKirbiFile(kirbiPath string) (*messages.Ticket, er
 		},
 	}
 
-	log.Printf("✅ Successfully parsed Kirbi file: %s", kirbiPath)
+	log.Printf("[+] Successfully parsed Kirbi file: %s", kirbiPath)
 	return ticket, nil
 }
 
 // GenerateGoldenTicket generates a Golden Ticket (requires KRBTGT hash)
 func (kc *KerberosClient) GenerateGoldenTicket(krbtgtHash, targetUser string) (*messages.Ticket, error) {
-	log.Printf("⚠️  DANGEROUS: Generating Golden Ticket for %s", targetUser)
+	log.Printf("[!] DANGEROUS: Generating Golden Ticket for %s", targetUser)
 
 	// This is a simplified implementation
 	// Real implementation would require the actual KRBTGT hash and proper encryption
@@ -239,13 +239,13 @@ func (kc *KerberosClient) GenerateGoldenTicket(krbtgtHash, targetUser string) (*
 		},
 	}
 
-	log.Printf("⚠️  Golden Ticket generated for %s@%s", targetUser, kc.Domain)
+	log.Printf("[+] Golden Ticket generated for %s@%s", targetUser, kc.Domain)
 	return ticket, nil
 }
 
 // GenerateSilverTicket generates a Silver Ticket (requires service hash)
 func (kc *KerberosClient) GenerateSilverTicket(serviceHash, targetService string) (*messages.Ticket, error) {
-	log.Printf("⚠️  DANGEROUS: Generating Silver Ticket for %s", targetService)
+	log.Printf("[!] DANGEROUS: Generating Silver Ticket for %s", targetService)
 
 	// This is a simplified implementation
 	// Real implementation would require the actual service hash and proper encryption
@@ -263,6 +263,6 @@ func (kc *KerberosClient) GenerateSilverTicket(serviceHash, targetService string
 		},
 	}
 
-	log.Printf("⚠️  Silver Ticket generated for %s", targetService)
+	log.Printf("[+] Silver Ticket generated for %s", targetService)
 	return ticket, nil
 }
