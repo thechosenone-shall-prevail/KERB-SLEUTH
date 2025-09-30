@@ -1,0 +1,5 @@
+SamAccountName,Type,Score,Severity,Reasons,SPNs,ExportHashPath
+backupsvc,ASREP,70,Medium,DoesNotRequirePreAuth flag set; UAC DONT_REQ_PREAUTH (0x400000); Password older than 90 days; Severity: Medium,,
+adminuser,ASREP,70,Medium,DoesNotRequirePreAuth flag set; UAC DONT_REQ_PREAUTH (0x400000); Password older than 90 days; Severity: Medium,,
+sqlsvc,KERBEROAST,75,Medium,Has Service Principal Names; SPN: MSSQLSvc/sql01.corp.local:1433; SPN: MSSQLSvc/sql01.corp.local; Password older than 90 days; Severity: Medium,MSSQLSvc/sql01.corp.local:1433; MSSQLSvc/sql01.corp.local,
+websvc,KERBEROAST,75,Medium,Has Service Principal Names; SPN: HTTP/web01.corp.local; SPN: HTTP/web01.corp.local:80; Password older than 90 days; Severity: Medium,HTTP/web01.corp.local; HTTP/web01.corp.local:80,

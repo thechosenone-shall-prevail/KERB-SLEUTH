@@ -1,0 +1,91 @@
+{
+  "summary": {
+    "total_users": 8,
+    "asrep_candidates": 2,
+    "kerberoast_candidates": 2
+  },
+  "candidates": [
+    {
+      "SamAccountName": "backupsvc",
+      "Type": "ASREP",
+      "Score": 70,
+      "Reasons": [
+        "DoesNotRequirePreAuth flag set",
+        "UAC DONT_REQ_PREAUTH (0x400000)",
+        "Password older than 90 days",
+        "Severity: Medium"
+      ],
+      "SPNs": null,
+      "PwdLastSet": "0001-01-01T00:00:00Z",
+      "MemberOf": [
+        "1625097600"
+      ],
+      "ExportHashPath": "",
+      "Hash": "",
+      "Domain": ""
+    },
+    {
+      "SamAccountName": "adminuser",
+      "Type": "ASREP",
+      "Score": 70,
+      "Reasons": [
+        "DoesNotRequirePreAuth flag set",
+        "UAC DONT_REQ_PREAUTH (0x400000)",
+        "Password older than 90 days",
+        "Severity: Medium"
+      ],
+      "SPNs": null,
+      "PwdLastSet": "0001-01-01T00:00:00Z",
+      "MemberOf": [
+        "1625097600"
+      ],
+      "ExportHashPath": "",
+      "Hash": "",
+      "Domain": ""
+    },
+    {
+      "SamAccountName": "sqlsvc",
+      "Type": "KERBEROAST",
+      "Score": 75,
+      "Reasons": [
+        "Has Service Principal Names",
+        "SPN: MSSQLSvc/sql01.corp.local:1433",
+        "SPN: MSSQLSvc/sql01.corp.local",
+        "Password older than 90 days",
+        "Severity: Medium"
+      ],
+      "SPNs": [
+        "MSSQLSvc/sql01.corp.local:1433",
+        "MSSQLSvc/sql01.corp.local"
+      ],
+      "PwdLastSet": "2020-06-01T05:30:00+05:30",
+      "MemberOf": [
+        "CN=DBAdmins"
+      ],
+      "ExportHashPath": "",
+      "Hash": "",
+      "Domain": ""
+    },
+    {
+      "SamAccountName": "websvc",
+      "Type": "KERBEROAST",
+      "Score": 75,
+      "Reasons": [
+        "Has Service Principal Names",
+        "SPN: HTTP/web01.corp.local",
+        "SPN: HTTP/web01.corp.local:80",
+        "Password older than 90 days",
+        "Severity: Medium"
+      ],
+      "SPNs": [
+        "HTTP/web01.corp.local",
+        "HTTP/web01.corp.local:80"
+      ],
+      "PwdLastSet": "2021-06-01T05:30:00+05:30",
+      "MemberOf": null,
+      "ExportHashPath": "",
+      "Hash": "",
+      "Domain": ""
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+- description: Detects potential AS-REP roasting attempts
+  detection:
+    condition: selection
+    selection:
+        EventID: 4768
+        PreAuthType: 0
+  level: high
+  logsource:
+    product: windows
+    service: security
+  status: experimental
+  title: AS-REP Roasting Detection
+- description: Detects potential Kerberoasting attempts
+  detection:
+    condition: selection
+    selection:
+        EventID: 4769
+        ServiceName: '*$'
+        TicketOptions: "0x40810000"
+  level: high
+  logsource:
+    product: windows
+    service: security
+  status: experimental
+  title: Kerberoasting Detection

@@ -74,8 +74,6 @@ var banners = []string{
         ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝       ╚══════╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝
     ` + Green + `              [+] ACTIVE DIRECTORY KERBEROS HUNTER [+]` + Reset,
 
-
-
 	// Banner 4 - Cyber Aesthetic
 	Cyan + `
     ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
@@ -88,7 +86,6 @@ var banners = []string{
     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝       ╚══════╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝
     ` + Cyan + `▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
     ` + DarkGray + `      ▓  A S - R E P  ▓  K E R B E R O A S T  ▓  H U N T E R  ▓` + Reset,
-
 }
 
 // GetRandomBanner returns a random ASCII art banner

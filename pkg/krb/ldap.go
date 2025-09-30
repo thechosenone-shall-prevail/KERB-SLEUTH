@@ -245,6 +245,16 @@ func (c *LDAPClient) Close() {
 	}
 }
 
+// GetConnection returns the LDAP connection
+func (c *LDAPClient) GetConnection() *ldap.Conn {
+	return c.conn
+}
+
+// GetBaseDN returns the base DN
+func (c *LDAPClient) GetBaseDN() string {
+	return c.baseDN
+}
+
 // Helper functions
 
 func getBaseDN(conn *ldap.Conn) (string, error) {
