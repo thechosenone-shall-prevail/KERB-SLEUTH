@@ -15,8 +15,12 @@ import (
 type User struct {
 	SamAccountName        string
 	DistinguishedName     string
-	Description           string
-	Email                 string
+	Description                string
+	Info                       string
+	Comment                    string
+	PhysicalDeliveryOfficeName string
+	PostOfficeBox              string
+	Email                      string
 	DoesNotRequirePreAuth bool
 	UserAccountControl    int
 	ServicePrincipalNames []string

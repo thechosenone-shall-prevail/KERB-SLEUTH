@@ -186,6 +186,10 @@ func (c *LDAPClient) EnumerateUsers() ([]ingest.User, error) {
 		"memberOf",
 		"description",
 		"mail",
+		"info",
+		"comment",
+		"physicalDeliveryOfficeName",
+		"postOfficeBox",
 	}
 
 	searchRequest := ldap.NewSearchRequest(
@@ -223,15 +227,18 @@ func (c *LDAPClient) EnumerateUsers() ([]ingest.User, error) {
 	log.Printf("[+] Found %d user objects", len(sr.Entries))
 
 	var users []ingest.User
-	for _, entry := range sr.Entries {
 		user := ingest.User{
-			SamAccountName:        entry.GetAttributeValue("sAMAccountName"),
-			DistinguishedName:     entry.GetAttributeValue("distinguishedName"),
-			Description:           entry.GetAttributeValue("description"),
-			Email:                 entry.GetAttributeValue("mail"),
-			ServicePrincipalNames: entry.GetAttributeValues("servicePrincipalName"),
-			MemberOf:              entry.GetAttributeValues("memberOf"),
-			RawFields:             make(map[string]string),
+			SamAccountName:             entry.GetAttributeValue("sAMAccountName"),
+			DistinguishedName:          entry.GetAttributeValue("distinguishedName"),
+			Description:                entry.GetAttributeValue("description"),
+			Info:                       entry.GetAttributeValue("info"),
+			Comment:                    entry.GetAttributeValue("comment"),
+			PhysicalDeliveryOfficeName: entry.GetAttributeValue("physicalDeliveryOfficeName"),
+			PostOfficeBox:              entry.GetAttributeValue("postOfficeBox"),
+			Email:                      entry.GetAttributeValue("mail"),
+			ServicePrincipalNames:      entry.GetAttributeValues("servicePrincipalName"),
+			MemberOf:                   entry.GetAttributeValues("memberOf"),
+			RawFields:                  make(map[string]string),
 		}
 
 		// Parse userAccountControl flags
