@@ -107,10 +107,20 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
 		domains = append(domains, strings.ToLower(sa.Domain)+".local")
 	}
 
+	// Clean the username (strip existing domain if present)
+	cleanUser := sa.Username
+	if strings.Contains(cleanUser, "\\") {
+		parts := strings.SplitN(cleanUser, "\\", 2)
+		cleanUser = parts[1]
+	} else if strings.Contains(cleanUser, "@") {
+		parts := strings.SplitN(cleanUser, "@", 2)
+		cleanUser = parts[0]
+	}
+
 	var lastErr error
 	// Loop 1: Standard Domain\User formats
 	for _, dName := range domains {
-		if s, conn, err := sa.tryDial(dName, sa.Username); err == nil {
+		if s, conn, err := sa.tryDial(dName, cleanUser); err == nil {
 			return s, conn, nil
 		} else {
 			lastErr = err
@@ -120,10 +130,11 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
 
 	// Loop 2: UPN Format (user@domain.htb)
 	if sa.Domain != "" {
-		upnUser := fmt.Sprintf("%s@%s", sa.Username, strings.ToLower(sa.Domain))
-		if !strings.Contains(sa.Domain, ".") {
-			upnUser = fmt.Sprintf("%s@%s.htb", sa.Username, strings.ToLower(sa.Domain))
+		domainPart := strings.ToLower(sa.Domain)
+		if !strings.Contains(domainPart, ".") {
+			domainPart = domainPart + ".htb"
 		}
+		upnUser := fmt.Sprintf("%s@%s", cleanUser, domainPart)
 		
 		if s, conn, err := sa.tryDial("", upnUser); err == nil {
 			log.Printf("[+] SMB auth succeeded with UPN: %s", upnUser)
