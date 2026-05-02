@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/advanced"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 	"gopkg.in/yaml.v3"
@@ -16,11 +17,12 @@ import (
 
 // Results is the top-level output structure
 type Results struct {
-	Domain     DomainInfo      `json:"domain"`
-	Summary    Summary         `json:"summary"`
-	Candidates []krb.Candidate `json:"candidates"`
-	Users      []ingest.User   `json:"users"`
-	Advanced   AdvancedResults `json:"advanced,omitempty"`
+	Domain       DomainInfo      `json:"domain"`
+	Summary      Summary         `json:"summary"`
+	Candidates   []krb.Candidate `json:"candidates"`
+	RiskInsights []string        `json:"risk_insights,omitempty"`
+	Users        []ingest.User   `json:"users"`
+	Advanced     AdvancedResults `json:"advanced,omitempty"`
 }
 
 // DomainInfo holds global domain data
@@ -42,11 +44,13 @@ type Summary struct {
 
 // AdvancedResults holds detailed findings from advanced modules
 type AdvancedResults struct {
-	Shares     []string      `json:"shares,omitempty"`
-	GPPHashes  []interface{} `json:"gpp_hashes,omitempty"`
-	DCSync     interface{}   `json:"dcsync,omitempty"`
-	Delegation interface{}   `json:"delegation,omitempty"`
-	RBCD       interface{}   `json:"rbcd,omitempty"`
+	Shares         []string               `json:"shares,omitempty"`
+	Pwned          bool                   `json:"pwned,omitempty"`
+	SensitiveFiles []advanced.FileFinding `json:"sensitive_files,omitempty"`
+	GPPHashes      []interface{}          `json:"gpp_hashes,omitempty"`
+	DCSync         interface{}            `json:"dcsync,omitempty"`
+	Delegation     interface{}            `json:"delegation,omitempty"`
+	RBCD           interface{}            `json:"rbcd,omitempty"`
 }
 
 func WriteJSON(path string, results Results) error {

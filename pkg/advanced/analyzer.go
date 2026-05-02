@@ -3,6 +3,7 @@ package advanced
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 )
@@ -334,6 +335,32 @@ func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 		if admin, _ := analyzer.CheckAdminAccess(); admin {
 			log.Printf("%s[+] SMB [Pwned!] - Administrative access detected%s", "\033[1;32m", "\033[0m")
 			aa.Results["pwned"] = true
+		}
+
+		// Context Intelligence: Deep File Hunt on juicy shares
+		juicyShares := []string{"logs", "backup", "it", "hr", "users", "shared", "it_admin", "software"}
+		var allFindings []FileFinding
+		for _, share := range shares {
+			lowerShare := strings.ToLower(share)
+			isJuicy := false
+			for _, j := range juicyShares {
+				if strings.Contains(lowerShare, j) {
+					isJuicy = true
+					break
+				}
+			}
+
+			if isJuicy {
+				log.Printf("[*] Juicy share detected: %s. Starting deep file hunt...", share)
+				findings, err := analyzer.DeepFileHunt(share)
+				if err == nil && len(findings) > 0 {
+					log.Printf("[+] Found %d sensitive file(s) in %s!", len(findings), share)
+					allFindings = append(allFindings, findings...)
+				}
+			}
+		}
+		if len(allFindings) > 0 {
+			aa.Results["sensitive_files"] = allFindings
 		}
 	}
 

