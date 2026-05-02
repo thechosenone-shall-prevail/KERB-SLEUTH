@@ -100,6 +100,13 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
 	// List of domain formats to try
 	domains := []string{sa.Domain, "", strings.ToLower(sa.Domain)}
 	
+	// If the domain is short (NetBIOS), try adding .htb or .local as a guess, 
+	// or if it's long, try the short version.
+	if !strings.Contains(sa.Domain, ".") && sa.Domain != "" {
+		domains = append(domains, sa.Domain+".htb")
+		domains = append(domains, sa.Domain+".local")
+	}
+	
 	var lastErr error
 	for _, dName := range domains {
 		conn, err := net.Dial("tcp", addr)
