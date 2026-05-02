@@ -1,8 +1,13 @@
-# KERB-SLEUTH: Active Directory Kerberos Security Scanner
+# Active Directory Kerberos Security Scanner
 
-**🩸 BLEEDING WINDOWS AUTHENTICATION 🩸**
+![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH)
+![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH)
+![Go version](https://img.shields.io/github/go-mod/go-version/thechosenone-shall-prevail/KERB-SLEUTH)
+![Platform](https://img.shields.io/badge/platform-windows%20%7C%20linux-blue)
 
-A production-ready, single-binary Go tool designed for deep reconnaissance and automated exploitation of Windows Active Directory environments. KERB-SLEUTH combines the speed of Go with the depth of industry-standard tools like NetExec to provide a comprehensive security overview in a single JSON report.
+🩸 BLEEDING WINDOWS AUTHENTICATION 🩸
+
+A production-ready, single-binary Go tool for identifying AS-REP and Kerberoastable targets in Active Directory environments, combined with deep reconnaissance and automated protocol discovery.
 
 ## Core Capabilities
 
@@ -11,11 +16,9 @@ A production-ready, single-binary Go tool designed for deep reconnaissance and a
 - **Protocol Discovery**: Rapid service checking for LDAP (389), SMB (445), WinRM (5985), RDP (3389), and RPC (135) with colored terminal "hits."
 - **Administrative "Pwned" Detection**: Real-time detection of administrative privileges by attempting access to ADMIN$ and C$ shares.
 - **Credential Harvesting**: Automated scanning of SYSVOL for Group Policy Preferences (GPP) XML files and decryption of `cpassword` attributes.
-- **Advanced Attack Vectors**: Built-in support for analyzing RBCD (Resource-Based Constrained Delegation), S4U delegation paths, and DCSync replication rights.
+- **Advanced Attack Vectors**: Built-in support for analyzing RBCD, S4U delegation paths, and DCSync replication rights.
 
 ## Installation
-
-Ensure you have Go installed on your system.
 
 ```bash
 git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
@@ -25,31 +28,21 @@ go build -o kerb-sleuth ./cmd/kerb-sleuth/
 
 ## Usage
 
-### Basic Authenticated Scan
-```bash
-./kerb-sleuth <target_ip> -u <user> -p <pass> -d <domain>
-```
-
 ### Deep Dive Analysis (All Modules)
 ```bash
 ./kerb-sleuth <target_ip> -u <user> -p <pass> -d <domain> -A
 ```
 
-### Full Recon & Hash Extraction
-```bash
-./kerb-sleuth <target_ip> -u <user> -p <pass> --crack --yes
-```
-
 ## Output Format
 
-KERB-SLEUTH prioritizes clean, actionable data. All findings are consolidated into a single `results.json` file, including:
+All findings are consolidated into a single `results.json` file, including:
 - **Domain Metadata**: OS Version, Functional Level, and Base DN.
 - **Recon Insights**: Automated flagging of high-risk accounts and unique group counts.
 - **Advanced Findings**: SMB shares, GPP credentials, and delegation paths.
 
 ## Legal Disclaimer
 
-This tool is designed for authorized security assessments and educational research only. Unauthorized access to computer systems is illegal. The developers assume no liability for misuse of this utility.
+This tool is designed for authorized security assessments only. Unauthorized use is illegal.
 
 ## License
 
