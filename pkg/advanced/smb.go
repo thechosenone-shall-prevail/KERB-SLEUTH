@@ -97,26 +97,35 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
 		addr = fmt.Sprintf("%s:445", addr)
 	}
 
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, nil, fmt.Errorf("SMB connection failed: %v", err)
-	}
+	// List of domain formats to try
+	domains := []string{sa.Domain, "", strings.ToLower(sa.Domain)}
+	
+	var lastErr error
+	for _, dName := range domains {
+		conn, err := net.Dial("tcp", addr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("SMB connection failed: %v", err)
+		}
 
-	d := &smb2.Dialer{
-		Initiator: &smb2.NTLMInitiator{
-			User:     sa.Username,
-			Password: sa.Password,
-			Domain:   sa.Domain,
-		},
-	}
+		d := &smb2.Dialer{
+			Initiator: &smb2.NTLMInitiator{
+				User:     sa.Username,
+				Password: sa.Password,
+				Domain:   dName,
+			},
+		}
 
-	s, err := d.Dial(conn)
-	if err != nil {
+		s, err := d.Dial(conn)
+		if err == nil {
+			return s, conn, nil
+		}
+		
+		lastErr = err
 		conn.Close()
-		return nil, nil, fmt.Errorf("SMB session failed: %v", err)
+		log.Printf("[!] SMB auth failed with domain '%s', trying next...", dName)
 	}
 
-	return s, conn, nil
+	return nil, nil, fmt.Errorf("SMB session failed after retries: %v", lastErr)
 }
 
 func (sa *SMBAnalyzer) walkGPP(fs *smb2.Share, path string, results *[]GPPSimpleResult) error {
