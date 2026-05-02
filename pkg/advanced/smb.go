@@ -1,7 +1,6 @@
 package advanced
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
@@ -370,6 +369,17 @@ func (sa *SMBAnalyzer) ScanGPP() ([]GPPSimpleResult, error) {
 	defer fs.Umount()
 
 	var results []GPPSimpleResult
+	// Recursively walk SYSVOL searching for GPP XMLs
+	err = sa.walkGPP(fs, ".", &results)
+	return results, err
+}
+
+func (sa *SMBAnalyzer) walkGPP(fs *smb2.Share, path string, results *[]GPPSimpleResult) error {
+	files, err := fs.ReadDir(path)
+	if err != nil {
+		return nil
+	}
+
 	gppFiles := []string{
 		"Groups.xml",
 		"Services.xml",
@@ -379,28 +389,23 @@ func (sa *SMBAnalyzer) ScanGPP() ([]GPPSimpleResult, error) {
 		"Drives.xml",
 	}
 
-	// Walk SYSVOL searching for GPP XMLs
-	err = fs.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-		if info.IsDir() {
-			return nil
+	for _, file := range files {
+		fullName := filepath.Join(path, file.Name())
+		if file.IsDir() {
+			sa.walkGPP(fs, fullName, results)
+			continue
 		}
 
 		for _, gppFile := range gppFiles {
-			if strings.EqualFold(info.Name(), gppFile) {
-				// Parse the XML
-				found, err := sa.parseGPPXML(fs, path)
+			if strings.EqualFold(file.Name(), gppFile) {
+				found, err := sa.parseGPPXML(fs, fullName)
 				if err == nil && len(found) > 0 {
-					results = append(results, found...)
+					*results = append(*results, found...)
 				}
 			}
 		}
-		return nil
-	})
-
-	return results, err
+	}
+	return nil
 }
 
 func (sa *SMBAnalyzer) parseGPPXML(fs *smb2.Share, path string) ([]GPPSimpleResult, error) {
