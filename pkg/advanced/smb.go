@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -25,10 +26,11 @@ type GPPSimpleResult struct {
 
 // FileFinding represents a sensitive file found on a share
 type FileFinding struct {
-	Path     string `json:"path"`
-	Share    string `json:"share"`
-	Size     int64  `json:"size"`
-	Category string `json:"category"` // "Log", "Config", "Script", "Secret"
+	Path      string    `json:"path"`
+	Share     string    `json:"share"`
+	Size      int64     `json:"size"`
+	Modified  time.Time `json:"modified"`
+	LootFound []string  `json:"loot_found,omitempty"`
 }
 
 // SMBAnalyzer handles SMB-related discovery (Shares, GPP, etc.)
@@ -123,34 +125,83 @@ func (sa *SMBAnalyzer) walk(fs *smb2.Share, path string, depth, maxDepth int, ex
 		ext := filepath.Ext(lowerName)
 
 		isSensitive := false
-		category := ""
 
 		// Check extension
-		if cat, ok := exts[ext]; ok {
+		if _, ok := exts[ext]; ok {
 			isSensitive = true
-			category = cat
 		}
 
 		// Check keywords
 		for _, kw := range keywords {
 			if strings.Contains(lowerName, kw) {
 				isSensitive = true
-				if category == "" {
-					category = "Potential Secret"
-				}
 				break
 			}
 		}
 
 		if isSensitive {
-			*findings = append(*findings, FileFinding{
+			stat, err := fs.Stat(fullName)
+			if err != nil {
+				continue
+			}
+
+			finding := FileFinding{
 				Path:     fullName,
 				Share:    share,
 				Size:     file.Size(),
-				Category: category,
-			})
+				Modified: stat.ModTime(),
+			}
+
+			// RAID THE FILE FOR SECRETS
+			loot := sa.RaidFileForSecrets(fs, fullName)
+			if len(loot) > 0 {
+				finding.LootFound = loot
+			}
+
+			*findings = append(*findings, finding)
 		}
 	}
+}
+
+// RaidFileForSecrets reads the beginning of a file and greps for credentials
+func (s *SMBAnalyzer) RaidFileForSecrets(fs *smb2.Share, path string) []string {
+	f, err := fs.Open(path)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+
+	// Read first 8KB
+	buf := make([]byte, 8192)
+	n, err := f.Read(buf)
+	if err != nil && n == 0 {
+		return nil
+	}
+	content := string(buf[:n])
+
+	// Regex patterns for secrets
+	patterns := map[string]string{
+		"Password": `(?i)(password|pass|pwd|passwd)\s*[:=]\s*([^\s"';]+)`,
+		"Secret":   `(?i)(secret|token|key|cred)\s*[:=]\s*([^\s"';]+)`,
+		"Generic":  `(?i)(login|user|admin)\s*[:=]\s*([^\s"';]+)`,
+	}
+
+	var loot []string
+	for name, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindAllStringSubmatch(content, -1)
+		for _, m := range matches {
+			if len(m) > 2 {
+				secret := strings.TrimSpace(m[2])
+				// Filter out noise
+				if len(secret) > 3 && !strings.Contains(strings.ToLower(secret), "account") {
+					loot = append(loot, fmt.Sprintf("%s: %s", name, secret))
+				}
+			}
+		}
+	}
+
+	return loot
 }
 
 // CheckAdminAccess checks if the user has administrative access (can access ADMIN$ or C$)

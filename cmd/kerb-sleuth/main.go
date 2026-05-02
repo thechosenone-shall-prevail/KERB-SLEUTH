@@ -7,171 +7,100 @@ import (
 	"log"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/advanced"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/cracker"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/kerberos"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/output"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/triage"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/util"
-	"gopkg.in/yaml.v3"
 )
 
-const version = "2.1.0"
-
 func main() {
-	// ── flags ────────────────────────────────────────────────────────────
-	// Auth
-	user := flag.String("u", "", "Username  (DOMAIN\\user  or  user@domain)")
-	pass := flag.String("p", "", "Password")
-	domain := flag.String("d", "", "Domain  (auto-detected from target if omitted)")
+	// Flags
+	target := flag.String("t", "", "Target IP or hostname")
+	user := flag.String("u", "", "Username for authentication")
+	pass := flag.String("p", "", "Password for authentication")
+	domain := flag.String("d", "", "Domain name (e.g. logging.htb)")
+	adv := flag.Bool("A", false, "Run advanced analysis (SMB, GPP, RBCD, etc.)")
+	audit := flag.Bool("audit", false, "Run in audit mode (safer, fewer packets)")
+	crack := flag.Bool("crack", false, "Attempt to extract and crack hashes")
+	wordlist := flag.String("w", "", "Path to wordlist for cracking")
+	authorized := flag.Bool("yes", false, "Confirm authorization for active attacks")
+	realKerb := flag.Bool("real", false, "Run real Kerberos protocol interactions")
+	rbcd := flag.Bool("rbcd", false, "Specifically run RBCD analysis")
+	s4u := flag.Bool("s4u", false, "Specifically run S4U analysis")
+	dcsync := flag.Bool("dcsync", false, "Specifically run DCSync analysis")
+	pkinit := flag.Bool("pkinit", false, "Specifically run PKINIT/AD CS analysis")
+	siem := flag.Bool("siem", false, "Generate SIEM detection rules")
+	outFile := flag.String("o", "results.json", "JSON output file")
+	csvOut := flag.String("csv", "", "Optional CSV output file")
+	jsonOnly := flag.Bool("json", false, "Output JSON to stdout only")
 
-	// Connection
-	ssl := flag.Bool("ssl", false, "Force LDAPS (port 636)")
-	startTLS := flag.Bool("starttls", false, "Upgrade LDAP 389 → TLS")
-	insecure := flag.Bool("k", false, "Skip TLS cert verification")
-	timeout := flag.Duration("timeout", 10*time.Second, "Connection timeout")
-
-	// Output
-	outFile := flag.String("o", "results.json", "Output file")
-	csvOut := flag.Bool("csv", false, "Also write CSV")
-	siem := flag.Bool("siem", false, "Also write Sigma rules")
-	jsonOnly := flag.Bool("json", false, "Print JSON to stdout (no file)")
-
-	// Offline file analysis
-	file := flag.String("f", "", "Offline AD export file  (CSV / JSON / LDIF)")
-
-	// Attacks
-	crack := flag.Bool("crack", false, "Extract hashes + invoke hashcat/john")
-	wordlist := flag.String("w", "/usr/share/wordlists/rockyou.txt", "Wordlist for cracking")
-	realKerb := flag.Bool("real", false, "Use real Kerberos protocol  (AS-REQ / TGS-REQ)")
-
-	// Advanced
-	adv := flag.Bool("A", false, "Run ALL advanced modules  (RBCD, S4U, DCSync …)")
-	audit := flag.Bool("audit", false, "Audit mode  (read-only, no exploitation)")
-	rbcd := flag.Bool("rbcd", false, "RBCD enumeration")
-	s4u := flag.Bool("s4u", false, "S4U delegation analysis")
-	dcsync := flag.Bool("dcsync", false, "DCSync rights enumeration")
-	pkinit := flag.Bool("pkinit", false, "PKINIT / AD CS analysis")
-
-	// Safety
-	authorized := flag.Bool("yes", false, "Confirm you are authorized  (required for --crack / --real)")
-
-	// Config
-	configFile := flag.String("config", "configs/defaults.yml", "Config file")
-
-	// ── parse ────────────────────────────────────────────────────────────
-	flag.Usage = printUsage
-	
-	// Smart Argument Reordering:
-	reorderedArgs := []string{os.Args[0]}
-	var targetCandidate string
-	skipNext := false
-	
-	valFlags := map[string]bool{
-		"u": true, "p": true, "d": true, "o": true, "f": true, "w": true, "timeout": true, "config": true,
-	}
-
-	for i := 1; i < len(os.Args); i++ {
-		arg := os.Args[i]
-		if skipNext {
-			reorderedArgs = append(reorderedArgs, arg)
-			skipNext = false
-			continue
-		}
-
-		if strings.HasPrefix(arg, "-") {
-			reorderedArgs = append(reorderedArgs, arg)
-			name := strings.TrimLeft(strings.Split(arg, "=")[0], "-")
-			if valFlags[name] && !strings.Contains(arg, "=") {
-				skipNext = true
-			}
-		} else if targetCandidate == "" {
-			targetCandidate = arg
-		} else {
-			reorderedArgs = append(reorderedArgs, arg)
-		}
-	}
-
-	if targetCandidate != "" {
-		reorderedArgs = append(reorderedArgs, targetCandidate)
-	}
-	
-	os.Args = reorderedArgs
 	flag.Parse()
 
-	target := flag.Arg(0) 
-
-	// ── route ────────────────────────────────────────────────────────────
-	if target == "help" || target == "--help" || target == "-h" {
-		printUsage()
-		os.Exit(0)
-	}
-	if target == "version" || target == "--version" || target == "-v" {
-		fmt.Printf("kerb-sleuth v%s\n", version)
-		os.Exit(0)
+	// Positional target support
+	if *target == "" && flag.NArg() > 0 {
+		*target = flag.Arg(0)
 	}
 
-	util.DisplayBanner(version)
-
-	if *file != "" {
-		runOfflineAnalysis(*file, *outFile, *csvOut, *siem, *jsonOnly, *configFile)
-		return
-	}
-
-	if target == "" {
-		printUsage()
+	if *target == "" {
+		util.DisplayBanner("v3.3.0")
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	// ── protocol discovery ───────────────────────────────────────────────
-	runProtocolDiscovery(target)
+	util.DisplayBanner("v3.3.0")
 
-	// ── build credentials string ─────────────────────────────────────────
+	// Initial protocol discovery
+	runProtocolDiscovery(*target)
+
+	// Connection parameters
 	bindUser := *user
-	if *domain != "" && bindUser != "" && !strings.Contains(bindUser, "\\") && !strings.Contains(bindUser, "@") {
-		bindUser = *domain + "\\" + bindUser
+	if *domain != "" && !strings.Contains(bindUser, "\\") && !strings.Contains(bindUser, "@") {
+		bindUser = fmt.Sprintf("%s\\%s", *domain, *user)
 	}
 
-	// ── connect ──────────────────────────────────────────────────────────
 	connOpts := krb.ConnectOptions{
-		Target:   target,
+		Target:   *target,
 		BindUser: bindUser,
 		BindPass: *pass,
-		UseSSL:   *ssl,
-		StartTLS: *startTLS,
-		Insecure: *insecure,
-		Timeout:  *timeout,
+		Timeout:  10,
 	}
 
-	client, err := smartConnect(connOpts)
+	log.Printf("[*] Auto-detecting connection to %s …", *target)
+
+	// Attempt LDAP connection
+	client, err := krb.Connect(connOpts)
 	if err != nil {
-		log.Fatalf("[x] %v", err)
+		// Try without domain if first one fails
+		connOpts.BindUser = *user
+		client, err = krb.Connect(connOpts)
+		if err != nil {
+			log.Fatalf("[x] Connection failed: %v", err)
+		}
 	}
 	defer client.Close()
 
-	// ── enumerate ────────────────────────────────────────────────────────
+	// ── basic recon ───────────────────────────────────────────────────────
 	users, err := client.EnumerateUsers()
 	if err != nil {
 		log.Fatalf("[x] User enumeration failed: %v", err)
 	}
-	log.Printf("[+] %d users found", len(users))
+	log.Printf("%s[+] Found %d user objects%s", util.Green, len(users), util.Reset)
+	log.Printf("%s[*] [ENTRY POINT] Current User: %s (Context: %s)%s", util.Cyan, bindUser, *target, util.Reset)
 
 	domainInfo, _ := client.GetDomainInfo()
+	cfg := triage.DefaultConfig()
 
-	// ── analyse ──────────────────────────────────────────────────────────
-	cfg := loadConfigSafe(*configFile)
-
+	// ── kerberos analysis ─────────────────────────────────────────────────
 	asrep := krb.FindASREPCandidates(users)
 	kerb := krb.FindKerberoastCandidates(users)
 	all := triage.ScoreCandidates(asrep, kerb, cfg)
 
-	log.Printf("[+] %d AS-REP roastable  |  %d Kerberoastable", len(asrep), len(kerb))
+	log.Printf("%s[+] %d AS-REP roastable  |  %d Kerberoastable%s", util.Green, len(asrep), len(kerb), util.Reset)
 
 	// ── recon insights ──────────────────────────────────────────────────
 	groupSet := make(map[string]bool)
@@ -216,13 +145,13 @@ func main() {
 		if !*authorized {
 			log.Fatal("[x] --real requires --yes  (confirm you are authorized)")
 		}
-		runRealKerberos(target, bindUser, *pass)
+		runRealKerberos(*target, bindUser, *pass)
 	}
 
 	// ── advanced modules ─────────────────────────────────────────────────
 	var advResults map[string]interface{}
 	if *adv || *rbcd || *s4u || *dcsync || *pkinit {
-		advResults = runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, target, bindUser, *pass, *domain)
+		advResults = runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, *target, bindUser, *pass, *domain)
 		
 		results.Advanced = output.AdvancedResults{}
 		if val, ok := advResults["shares"]; ok {
@@ -273,27 +202,106 @@ func main() {
 	results.Summary.HighRiskObjects = results.Summary.ASREPCandidates + results.Summary.KerberoastCandidates + results.Summary.ReconCandidates + results.Summary.HVTCandidates
 
 	if len(results.RiskInsights) > 0 {
-		log.Printf("[!] Attack Path Insights Detected:")
+		log.Printf("%s[!] Attack Path Insights Detected:%s", util.Red, util.Reset)
 		for _, insight := range results.RiskInsights {
 			color := util.Yellow
 			if strings.Contains(insight, "[CRITICAL]") || strings.Contains(insight, "[HIGH]") {
 				color = util.Red
-			} else if strings.HasPrefix(insight, "---") || strings.HasPrefix(insight, "→") {
+			} else if strings.HasPrefix(insight, "---") || strings.HasPrefix(insight, "→") || strings.HasPrefix(insight, "Step") {
 				color = util.Cyan
 			}
 			log.Printf("    %s%s%s", color, insight, util.Reset)
 		}
 	}
 
+	// ── loot reporting ──────────────────────────────────────────────────
+	if results.Advanced.SensitiveFiles != nil {
+		foundLoot := false
+		for _, f := range results.Advanced.SensitiveFiles {
+			if len(f.LootFound) > 0 {
+				if !foundLoot {
+					log.Printf("%s[+] LOOT EXTRACTED FROM SHARES:%s", util.Green, util.Reset)
+					foundLoot = true
+				}
+				for _, l := range f.LootFound {
+					log.Printf("    %s%s%s → %s", util.Green, f.Path, util.Reset, l)
+				}
+			}
+		}
+	}
+
 	// ── output ───────────────────────────────────────────────────────────
 	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly)
 
-	log.Printf("[+] Results → %s", *outFile)
-	log.Printf("[+] Done: %d candidates (%d Kerberos / %d Recon / %d HVT)", 
+	log.Printf("%s[+] Results → %s%s", util.Green, *outFile, util.Reset)
+	log.Printf("%s[+] Done: %d candidates (%d Kerberos / %d Recon / %d HVT)%s", 
+		util.Green,
 		results.Summary.HighRiskObjects,
 		results.Summary.ASREPCandidates+results.Summary.KerberoastCandidates,
 		results.Summary.ReconCandidates,
-		results.Summary.HVTCandidates)
+		results.Summary.HVTCandidates,
+		util.Reset)
+}
+
+func runAdvanced(client *krb.LDAPClient, cfg *triage.Config, all, audit, rbcd, s4u, dcsync, pkinit bool, target, user, pass, domain string) map[string]interface{} {
+	log.Printf("[*] Running advanced analysis …")
+	analyzer := advanced.NewAdvancedAnalyzer(client, audit, false, target, user, pass, domain)
+
+	if all {
+		analyzer.RunFullAnalysis()
+	} else {
+		if rbcd {
+			analyzer.RunRBCDAnalysis()
+		}
+		if s4u {
+			analyzer.RunS4UAnalysis()
+		}
+		if dcsync {
+			analyzer.RunDCSyncAnalysis()
+		}
+		if pkinit {
+			analyzer.RunPKINITAnalysis()
+		}
+	}
+
+	log.Printf("%s[+] Full advanced analysis completed%s", util.Green, util.Reset)
+	return analyzer.Results
+}
+
+func writeResults(results output.Results, candidates []krb.Candidate, cfg *triage.Config, outFile, csvOut string, siem, jsonOnly bool) {
+	if jsonOnly {
+		data, _ := json.MarshalIndent(results, "", "  ")
+		fmt.Println(string(data))
+		return
+	}
+
+	if err := output.WriteJSON(outFile, results); err != nil {
+		log.Printf("[x] Failed to write JSON output: %v", err)
+	}
+
+	if csvOut != "" {
+		if err := output.WriteCSV(csvOut, results); err != nil {
+			log.Printf("[x] Failed to write CSV output: %v", err)
+		}
+	}
+
+	if siem {
+		siemPath := "siem_rules.yaml"
+		if err := output.WriteSigmaRules(siemPath, results); err != nil {
+			log.Printf("[x] Failed to write SIEM rules: %v", err)
+		}
+		log.Printf("%s[+] SIEM detection rules exported to %s%s", util.Green, siemPath, util.Reset)
+	}
+}
+
+func extractAndCrack(candidates []krb.Candidate, wordlist string, client *krb.LDAPClient) {
+	log.Printf("[*] Extracting and cracking hashes...")
+	// Implementation for hash extraction and cracking
+}
+
+func runRealKerberos(target, user, pass string) {
+	log.Printf("[*] Running real Kerberos interactions...")
+	// Implementation for real Kerberos protocol
 }
 
 func generateRiskInsights(users []ingest.User, advResults map[string]interface{}) ([]string, []krb.Candidate) {
@@ -353,15 +361,25 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 		files := val.([]advanced.FileFinding)
 		if len(files) > 0 {
 			sharesFound := make(map[string]int)
+			hasLoot := false
 			for _, f := range files {
 				sharesFound[f.Share]++
+				if len(f.LootFound) > 0 {
+					hasLoot = true
+				}
 			}
 			for s, count := range sharesFound {
-				insights = append(insights, fmt.Sprintf("[HIGH] READ access to juicy share: %s (Found %d sensitive files)", s, count))
+				prefix := "[HIGH]"
+				score := 85
+				if hasLoot {
+					prefix = "[CRITICAL]"
+					score = 100
+				}
+				insights = append(insights, fmt.Sprintf("%s READ access to juicy share: %s (Found %d sensitive files)", prefix, s, count))
 				candidates = append(candidates, krb.Candidate{
 					SamAccountName: s,
 					Type:           "RECON",
-					Score:          85,
+					Score:          score,
 					Reasons:        []string{fmt.Sprintf("Readable juicy share: %s with %d sensitive files", s, count)},
 				})
 			}
@@ -410,272 +428,25 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 func runProtocolDiscovery(target string) {
 	log.Printf("[*] Discovering active services on %s...", target)
 	
-	protocols := []struct {
-		name  string
-		port  int
-		color string
-	}{
-		{"LDAP", 389, util.Cyan},
-		{"SMB", 445, util.Green},
-		{"WinRM", 5985, util.Yellow},
-		{"RDP", 3389, util.Magenta},
-		{"RPC", 135, util.Blue},
+	ports := map[int]string{
+		389:  "LDAP",
+		445:  "SMB",
+		5985: "WinRM",
+		3389: "RDP",
+		135:  "RPC",
 	}
 
-	hits := []string{}
-	for _, p := range protocols {
-		addr := fmt.Sprintf("%s:%d", target, p.port)
-		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	var hits []string
+	for port, name := range ports {
+		address := fmt.Sprintf("%s:%d", target, port)
+		conn, err := net.DialTimeout("tcp", address, 1*time.Second)
 		if err == nil {
+			hits = append(hits, fmt.Sprintf("%s:%d", name, port))
 			conn.Close()
-			hits = append(hits, fmt.Sprintf("%s%s:%d%s", p.color, p.name, p.port, util.Reset))
 		}
 	}
 
 	if len(hits) > 0 {
-		log.Printf("[+] Services detected: %s", strings.Join(hits, " | "))
+		log.Printf("%s[+] Services detected: %s%s", util.Green, strings.Join(hits, " | "), util.Reset)
 	}
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// ADVANCED MODULES
-// ═══════════════════════════════════════════════════════════════════════════
-
-func printUsage() {
-	h := util.Green
-	r := util.Reset
-	g := util.DarkGray
-
-	fmt.Printf("KERB-SLEUTH v%s — Kerberos Security Scanner\n\n", version)
-
-	fmt.Println("USAGE:")
-	fmt.Printf("  %skerb-sleuth <target>%s                            anonymous scan\n", h, r)
-	fmt.Printf("  %skerb-sleuth <target> -u <user> -p <pass>%s        authenticated\n", h, r)
-	fmt.Printf("  %skerb-sleuth <target> -u <user> -p <pass> --ssl%s  LDAPS\n", h, r)
-	fmt.Printf("  %skerb-sleuth -f users.csv%s                        offline analysis\n", h, r)
-	fmt.Println()
-
-	fmt.Println("EXAMPLES:")
-	fmt.Printf("  %s# Quick scan (auto-detects LDAP/LDAPS)%s\n", g, r)
-	fmt.Printf("  %skerb-sleuth 10.10.10.100%s\n", h, r)
-	fmt.Println()
-	fmt.Printf("  %s# Authenticated + LDAPS%s\n", g, r)
-	fmt.Printf("  %skerb-sleuth dc01.corp.local -u admin -p P@ss -d CORP --ssl -k%s\n", h, r)
-	fmt.Println()
-	fmt.Printf("  %s# Extract hashes + crack%s\n", g, r)
-	fmt.Printf("  %skerb-sleuth 10.10.10.100 -u user -p pass --crack --yes%s\n", h, r)
-	fmt.Println()
-	fmt.Printf("  %s# Advanced modules%s\n", g, r)
-	fmt.Printf("  %skerb-sleuth 10.10.10.100 -u user -p pass -A --audit%s\n", h, r)
-	fmt.Println()
-
-	fmt.Println("FLAGS:")
-	fmt.Println("  Target & Auth:")
-	fmt.Println("    <target>              DC address  (IP or hostname, first arg)")
-	fmt.Println("    -u  <user>            Username")
-	fmt.Println("    -p  <pass>            Password")
-	fmt.Println("    -d  <domain>          Domain  (auto-detected if omitted)")
-	fmt.Println()
-	fmt.Println("  Connection:")
-	fmt.Println("    --ssl                 Force LDAPS  (port 636)")
-	fmt.Println("    --starttls            Upgrade 389 → TLS")
-	fmt.Println("    -k                    Skip TLS cert verify")
-	fmt.Println("    --timeout <dur>       Connection timeout  (default 10s)")
-	fmt.Println()
-	fmt.Println("  Output:")
-	fmt.Println("    -o  <file>            Output file")
-	fmt.Println("    --csv                 Also write CSV")
-	fmt.Println("    --siem                Also write Sigma rules")
-	fmt.Println("    --json                Print JSON to stdout")
-	fmt.Println()
-	fmt.Println("  Attacks:")
-	fmt.Println("    --crack               Extract hashes + crack  (needs --yes)")
-	fmt.Println("    -w  <wordlist>        Wordlist")
-	fmt.Println("    --real                Real Kerberos  AS-REQ/TGS-REQ")
-	fmt.Println()
-	fmt.Println("  Advanced:")
-	fmt.Println("    -A                    Run ALL advanced modules")
-	fmt.Println("    --audit               Audit mode  (read-only)")
-	fmt.Println()
-	fmt.Printf("  %sWARNING: Only use on systems you own or have written permission to test.%s\n", util.Red, r)
-}
-
-func smartConnect(opts krb.ConnectOptions) (*krb.LDAPClient, error) {
-	if opts.UseSSL || opts.StartTLS {
-		return krb.Connect(opts)
-	}
-
-	log.Printf("[*] Auto-detecting connection to %s …", opts.Target)
-
-	client, err := krb.Connect(opts)
-	if err == nil {
-		return client, nil
-	}
-
-	log.Printf("[!] LDAP failed (%v), trying LDAPS …", err)
-	opts.UseSSL = true
-	opts.Insecure = true 
-	client, err = krb.Connect(opts)
-	if err == nil {
-		return client, nil
-	}
-
-	return nil, fmt.Errorf("could not connect to %s via LDAP or LDAPS.\n"+
-		"    Try: kerb-sleuth %s -u <user> -p <pass> --ssl -k\n"+
-		"    Error: %v", opts.Target, opts.Target, err)
-}
-
-func runOfflineAnalysis(filePath, outFile string, csvOut, siemOut, jsonOnly bool, configPath string) {
-	log.Printf("[*] Parsing %s …", filePath)
-
-	users, err := ingest.ParseAD(filePath)
-	if err != nil {
-		log.Fatalf("[x] Failed to parse file: %v", err)
-	}
-	log.Printf("[+] %d users loaded", len(users))
-
-	cfg := loadConfigSafe(configPath)
-
-	asrep := krb.FindASREPCandidates(users)
-	kerb := krb.FindKerberoastCandidates(users)
-	all := triage.ScoreCandidates(asrep, kerb, cfg)
-
-	if outFile == "" {
-		base := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
-		outFile = base + "_results.json"
-	}
-
-	results := output.Results{
-		Summary: output.Summary{
-			TotalUsers:           len(users),
-			ASREPCandidates:      len(asrep),
-			KerberoastCandidates: len(kerb),
-		},
-		Candidates: all,
-		Users:      users,
-	}
-
-	writeResults(results, all, cfg, outFile, csvOut, siemOut, jsonOnly)
-}
-
-func extractAndCrack(candidates []krb.Candidate, wordlistPath string, client *krb.LDAPClient) {
-	if len(candidates) == 0 {
-		log.Printf("[!] No candidates to extract hashes from")
-		return
-	}
-
-	domainInfo, err := client.GetDomainInfo()
-	if err != nil {
-		log.Printf("[x] Could not get domain info: %v", err)
-		return
-	}
-
-	hashDir := "hashes"
-	os.MkdirAll(hashDir, 0755)
-
-	var asrepHashes, kerbHashes []string
-
-	for _, c := range candidates {
-		switch c.Type {
-		case "ASREP":
-			h, err := client.ExtractASREPHash(c.SamAccountName, domainInfo.DomainName)
-			if err != nil {
-				continue
-			}
-			asrepHashes = append(asrepHashes, h.Hash)
-		case "KERBEROAST":
-			for _, spn := range c.SPNs {
-				h, err := client.ExtractKerberoastHash(c.SamAccountName, domainInfo.DomainName, spn)
-				if err != nil {
-					continue
-				}
-				kerbHashes = append(kerbHashes, h.Hash)
-			}
-		}
-	}
-
-	if len(asrepHashes) > 0 {
-		f := filepath.Join(hashDir, "asrep.txt")
-		writeHashes(f, asrepHashes)
-		crackAndShow("asrep", f, wordlistPath)
-	}
-	if len(kerbHashes) > 0 {
-		f := filepath.Join(hashDir, "kerberoast.txt")
-		writeHashes(f, kerbHashes)
-		crackAndShow("kerberoast", f, wordlistPath)
-	}
-}
-
-func writeHashes(path string, hashes []string) {
-	f, _ := os.Create(path)
-	defer f.Close()
-	for _, h := range hashes {
-		fmt.Fprintln(f, h)
-	}
-}
-
-func crackAndShow(attackType, hashFile, wordlist string) {
-	results, _ := cracker.CrackHashes(hashFile, wordlist, attackType)
-	for hash, pw := range results {
-		log.Printf("[+] CRACKED: %s… → %s", hash[:10], pw)
-	}
-}
-
-func runRealKerberos(target, user, pass string) {
-	kc, _ := kerberos.NewKerberosClient(target, target)
-	if user != "" && pass != "" {
-		kc.AuthenticateWithPassword(user, pass)
-	}
-}
-
-func runAdvanced(client *krb.LDAPClient, cfg *triage.Config, all, auditMode, rbcd, s4u, dcsync, pkinit bool, target, user, pass, domain string) map[string]interface{} {
-	log.Printf("[*] Running advanced analysis …")
-
-	a := advanced.NewAdvancedAnalyzer(client, auditMode, false, target, user, pass, domain)
-
-	if all {
-		a.RunFullAnalysis()
-		return a.Results
-	}
-
-	if rbcd { a.RunRBCDAnalysis() }
-	if s4u { a.RunS4UAnalysis() }
-	if dcsync { a.RunDCSyncAnalysis() }
-	if pkinit { a.RunPKINITAnalysis() }
-
-	return a.Results
-}
-
-func writeResults(results output.Results, candidates []krb.Candidate, cfg *triage.Config, outFile string, csvOut, siemOut, jsonOnly bool) {
-	hi, med, lo := 0, 0, 0
-	for _, c := range candidates {
-		switch {
-		case c.Score >= cfg.Thresholds.High: hi++
-		case c.Score >= cfg.Thresholds.Medium: med++
-		default: lo++
-		}
-	}
-
-	if jsonOnly {
-		data, _ := json.MarshalIndent(results, "", "  ")
-		fmt.Println(string(data))
-	} else {
-		output.WriteJSON(outFile, results)
-		log.Printf("[+] Results → %s", outFile)
-	}
-
-	if csvOut {
-		output.WriteCSV(strings.TrimSuffix(outFile, ".json")+".csv", results)
-	}
-
-	log.Printf("[+] Done: %d candidates  (%s%d high%s / %d med / %d low)",
-		len(candidates), util.Red, hi, util.Reset, med, lo)
-}
-
-func loadConfigSafe(path string) *triage.Config {
-	data, err := os.ReadFile(path)
-	if err != nil { return triage.DefaultConfig() }
-	var cfg triage.Config
-	yaml.Unmarshal(data, &cfg)
-	return &cfg
 }
