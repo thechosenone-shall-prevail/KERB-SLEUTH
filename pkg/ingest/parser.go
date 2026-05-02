@@ -15,6 +15,8 @@ import (
 type User struct {
 	SamAccountName        string
 	DistinguishedName     string
+	Description           string
+	Email                 string
 	DoesNotRequirePreAuth bool
 	UserAccountControl    int
 	ServicePrincipalNames []string

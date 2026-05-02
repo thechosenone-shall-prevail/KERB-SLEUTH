@@ -18,6 +18,7 @@ type AdvancedAnalyzer struct {
 	Username      string
 	Password      string
 	Domain        string
+	Results       map[string]interface{}
 }
 
 // NewAdvancedAnalyzer creates a new advanced analyzer
@@ -36,6 +37,7 @@ func NewAdvancedAnalyzer(client *krb.LDAPClient, auditMode, dangerousMode bool, 
 		Username:      user,
 		Password:      pass,
 		Domain:        domain,
+		Results:       make(map[string]interface{}),
 	}
 }
 
@@ -355,6 +357,7 @@ func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 		for _, share := range shares {
 			log.Printf("   - %s", share)
 		}
+		aa.Results["shares"] = shares
 	}
 
 	// Scan for GPP passwords
@@ -363,6 +366,7 @@ func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 		log.Printf("[!] GPP scanning failed: %v", err)
 	} else if len(gppResults) > 0 {
 		log.Printf("[+] Found %d GPP password(s) in SYSVOL!", len(gppResults))
+		aa.Results["gpp"] = gppResults
 	}
 
 	return nil
@@ -373,18 +377,21 @@ func (aa *AdvancedAnalyzer) RunFullAnalysis() error {
 	log.Printf("[*] Starting full advanced Kerberos analysis...")
 
 	// Run all analysis modules
-	analyses := []func() error{
-		aa.RunSMBAnalysis,
-		aa.RunRBCDAnalysis,
-		aa.RunS4UAnalysis,
-		aa.RunPKINITAnalysis,
-		aa.RunDCSyncAnalysis,
-		aa.RunLoggingAnalysis,
+	analyses := []struct {
+		name string
+		fn   func() error
+	}{
+		{"smb", aa.RunSMBAnalysis},
+		{"rbcd", aa.RunRBCDAnalysis},
+		{"s4u", aa.RunS4UAnalysis},
+		{"pkinit", aa.RunPKINITAnalysis},
+		{"dcsync", aa.RunDCSyncAnalysis},
+		{"logging", aa.RunLoggingAnalysis},
 	}
 
-	for _, analysis := range analyses {
-		if err := analysis(); err != nil {
-			log.Printf("[x] Analysis failed: %v", err)
+	for _, a := range analyses {
+		if err := a.fn(); err != nil {
+			log.Printf("[x] %s analysis failed: %v", a.name, err)
 		}
 	}
 

@@ -9,19 +9,44 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 	"gopkg.in/yaml.v3"
 )
 
+// Results is the top-level output structure
 type Results struct {
+	Domain     DomainInfo      `json:"domain"`
 	Summary    Summary         `json:"summary"`
 	Candidates []krb.Candidate `json:"candidates"`
+	Users      []ingest.User   `json:"users"`
+	Advanced   AdvancedResults `json:"advanced,omitempty"`
 }
 
+// DomainInfo holds global domain data
+type DomainInfo struct {
+	Name            string `json:"name"`
+	DN              string `json:"dn"`
+	FunctionalLevel string `json:"functional_level"`
+	OS              string `json:"os_version"`
+}
+
+// Summary holds high-level counts
 type Summary struct {
 	TotalUsers           int `json:"total_users"`
 	ASREPCandidates      int `json:"asrep_candidates"`
 	KerberoastCandidates int `json:"kerberoast_candidates"`
+	TotalGroups          int `json:"total_groups"`
+	HighRiskObjects      int `json:"high_risk_objects"`
+}
+
+// AdvancedResults holds detailed findings from advanced modules
+type AdvancedResults struct {
+	Shares     []string      `json:"shares,omitempty"`
+	GPPHashes  []interface{} `json:"gpp_hashes,omitempty"`
+	DCSync     interface{}   `json:"dcsync,omitempty"`
+	Delegation interface{}   `json:"delegation,omitempty"`
+	RBCD       interface{}   `json:"rbcd,omitempty"`
 }
 
 func WriteJSON(path string, results Results) error {

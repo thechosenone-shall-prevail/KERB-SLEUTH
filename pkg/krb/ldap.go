@@ -227,6 +227,8 @@ func (c *LDAPClient) EnumerateUsers() ([]ingest.User, error) {
 		user := ingest.User{
 			SamAccountName:        entry.GetAttributeValue("sAMAccountName"),
 			DistinguishedName:     entry.GetAttributeValue("distinguishedName"),
+			Description:           entry.GetAttributeValue("description"),
+			Email:                 entry.GetAttributeValue("mail"),
 			ServicePrincipalNames: entry.GetAttributeValues("servicePrincipalName"),
 			MemberOf:              entry.GetAttributeValues("memberOf"),
 			RawFields:             make(map[string]string),
@@ -283,9 +285,21 @@ func (c *LDAPClient) GetDomainInfo() (*DomainInfo, error) {
 
 	entry := sr.Entries[0]
 	info := &DomainInfo{
-		BaseDN:      c.baseDN,
-		DNSHostName: entry.GetAttributeValue("dnsHostName"),
-		LDAPService: entry.GetAttributeValue("ldapServiceName"),
+		BaseDN:          c.baseDN,
+		DNSHostName:     entry.GetAttributeValue("dnsHostName"),
+		LDAPService:     entry.GetAttributeValue("ldapServiceName"),
+		FunctionalLevel: entry.GetAttributeValue("domainFunctionality"),
+	}
+
+	// Try to get OS version from the DC computer object
+	dcName := strings.Split(info.DNSHostName, ".")[0]
+	dcSearch := fmt.Sprintf("(&(objectClass=computer)(sAMAccountName=%s$))", dcName)
+	srDC, err := c.conn.Search(ldap.NewSearchRequest(
+		c.baseDN, ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		dcSearch, []string{"operatingSystem", "operatingSystemVersion"}, nil,
+	))
+	if err == nil && len(srDC.Entries) > 0 {
+		info.OS = srDC.Entries[0].GetAttributeValue("operatingSystem")
 	}
 
 	// Extract domain name from base DN  (DC=corp,DC=local → CORP.LOCAL)
@@ -314,10 +328,12 @@ func (c *LDAPClient) GetBaseDN() string {
 
 // DomainInfo holds basic domain information
 type DomainInfo struct {
-	BaseDN      string
-	DomainName  string
-	DNSHostName string
-	LDAPService string
+	BaseDN          string
+	DomainName      string
+	DNSHostName     string
+	LDAPService     string
+	FunctionalLevel string
+	OS              string
 }
 
 // --- Hash Extraction ---
