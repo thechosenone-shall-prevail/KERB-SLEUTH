@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/hirochachacha/go-smb2"
 )
@@ -100,39 +101,68 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, net.Conn, error) {
 	// List of domain formats to try
 	domains := []string{sa.Domain, "", strings.ToLower(sa.Domain)}
 	
-	// If the domain is short (NetBIOS), try adding .htb or .local as a guess, 
-	// or if it's long, try the short version.
+	// Add .htb and .local guesses in lowercase
 	if !strings.Contains(sa.Domain, ".") && sa.Domain != "" {
-		domains = append(domains, sa.Domain+".htb")
-		domains = append(domains, sa.Domain+".local")
+		domains = append(domains, strings.ToLower(sa.Domain)+".htb")
+		domains = append(domains, strings.ToLower(sa.Domain)+".local")
 	}
-	
+
 	var lastErr error
+	// Loop 1: Standard Domain\User formats
 	for _, dName := range domains {
-		conn, err := net.Dial("tcp", addr)
-		if err != nil {
-			return nil, nil, fmt.Errorf("SMB connection failed: %v", err)
-		}
-
-		d := &smb2.Dialer{
-			Initiator: &smb2.NTLMInitiator{
-				User:     sa.Username,
-				Password: sa.Password,
-				Domain:   dName,
-			},
-		}
-
-		s, err := d.Dial(conn)
-		if err == nil {
+		if s, conn, err := sa.tryDial(dName, sa.Username); err == nil {
 			return s, conn, nil
+		} else {
+			lastErr = err
+			log.Printf("[!] SMB auth failed with domain '%s', trying next...", dName)
+		}
+	}
+
+	// Loop 2: UPN Format (user@domain.htb)
+	if sa.Domain != "" {
+		upnUser := fmt.Sprintf("%s@%s", sa.Username, strings.ToLower(sa.Domain))
+		if !strings.Contains(sa.Domain, ".") {
+			upnUser = fmt.Sprintf("%s@%s.htb", sa.Username, strings.ToLower(sa.Domain))
 		}
 		
-		lastErr = err
-		conn.Close()
-		log.Printf("[!] SMB auth failed with domain '%s', trying next...", dName)
+		if s, conn, err := sa.tryDial("", upnUser); err == nil {
+			log.Printf("[+] SMB auth succeeded with UPN: %s", upnUser)
+			return s, conn, nil
+		} else {
+			lastErr = err
+			log.Printf("[!] SMB auth failed with UPN '%s'...", upnUser)
+		}
 	}
 
-	return nil, nil, fmt.Errorf("SMB session failed after retries: %v", lastErr)
+	return nil, nil, fmt.Errorf("SMB session failed after all retries: %v", lastErr)
+}
+
+func (sa *SMBAnalyzer) tryDial(domain, user string) (*smb2.Session, net.Conn, error) {
+	addr := sa.Target
+	if !strings.Contains(addr, ":") {
+		addr = fmt.Sprintf("%s:445", addr)
+	}
+
+	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	d := &smb2.Dialer{
+		Initiator: &smb2.NTLMInitiator{
+			User:     user,
+			Password: sa.Password,
+			Domain:   domain,
+		},
+	}
+
+	s, err := d.Dial(conn)
+	if err != nil {
+		conn.Close()
+		return nil, nil, err
+	}
+
+	return s, conn, nil
 }
 
 func (sa *SMBAnalyzer) walkGPP(fs *smb2.Share, path string, results *[]GPPSimpleResult) error {
