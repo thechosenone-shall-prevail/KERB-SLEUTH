@@ -1,89 +1,56 @@
-```
-██╗  ██╗███████╗██████╗ ██████╗       ███████╗██╗     ███████╗██╗   ██╗████████╗██╗  ██╗
-██║ ██╔╝██╔════╝██╔══██╗██╔══██╗      ██╔════╝██║     ██╔════╝██║   ██║╚══██╔══╝██║  ██║
-█████╔╝ █████╗  ██████╔╝██████╔╝█████╗███████╗██║     █████╗  ██║   ██║   ██║   ███████║
-██╔═██╗ ██╔══╝  ██╔══██╗██╔══██╗╚════╝╚════██║██║     ██╔══╝  ██║   ██║   ██║   ██╔══██║
-██║  ██╗███████╗██║  ██║██████╔╝      ███████║███████╗███████╗╚██████╔╝   ██║   ██║  ██║
-╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═════╝       ╚══════╝╚══════╝╚══════╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝
-```
-
-<div align="center">
-
-# 🔥 KERB-SLEUTH 🔥
-### **Active Directory Kerberos Security Scanner**
-
-[![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH?style=for-the-badge&color=darkred)](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/blob/main/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH?style=for-the-badge&color=red)](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/stargazers)
-[![Go version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=for-the-badge&logo=go)](https://golang.org/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey?style=for-the-badge)](https://github.com/thechosenone-shall-prevail/KERB-SLEUTH/releases)
+# KERB-SLEUTH: Active Directory Kerberos Security Scanner
 
 **🩸 BLEEDING WINDOWS AUTHENTICATION 🩸**
 
-*A production-ready, single-binary Go tool for identifying AS-REP and Kerberoastable targets in Active Directory environments. Designed for offline-first operation with safe-by-default behavior.*
+A production-ready, single-binary Go tool designed for deep reconnaissance and automated exploitation of Windows Active Directory environments. KERB-SLEUTH combines the speed of Go with the depth of industry-standard tools like NetExec to provide a comprehensive security overview in a single JSON report.
 
-</div>
+## Core Capabilities
 
----
+- **Identity Reconnaissance**: Automated enumeration of all user objects, including detailed attributes such as descriptions, group memberships (MemberOf), and account security flags (UAC).
+- **Kerberos Attacks**: Targeted discovery of AS-REP roastable and Kerberoastable service accounts with built-in scoring for prioritization.
+- **Protocol Discovery**: Rapid service checking for LDAP (389), SMB (445), WinRM (5985), RDP (3389), and RPC (135) with colored terminal "hits."
+- **Administrative "Pwned" Detection**: Real-time detection of administrative privileges by attempting access to ADMIN$ and C$ shares.
+- **Credential Harvesting**: Automated scanning of SYSVOL for Group Policy Preferences (GPP) XML files and decryption of `cpassword` attributes.
+- **Advanced Attack Vectors**: Built-in support for analyzing RBCD (Resource-Based Constrained Delegation), S4U delegation paths, and DCSync replication rights.
 
-## 🎯 **ERIGONOMIC & EFFICIENT**
+## Installation
 
-KERB-SLEUTH v2.0 is designed for speed and zero-noise. No complex subcommands or simulated data—just point it at a DC and let it hunt.
-
-### **Quick Start**
-```bash
-# Basic anonymous scan (auto-detects LDAP/LDAPS)
-kerb-sleuth 10.10.10.100
-
-# Authenticated full scan with all advanced modules
-kerb-sleuth 10.10.10.100 -u jsmith -p P@ssw0rd123 -d corp.local -A
-
-# Extract hashes and auto-crack with hashcat/john
-kerb-sleuth 10.10.10.100 -u user -p pass --crack --yes
-```
-
----
-
-## 🛠️ **CORE FEATURES**
-
-- **Smart Auto-Detection**: Automatically negotiates LDAP/LDAPS/StartTLS.
-- **Position-Independent CLI**: Target can be anywhere in the command.
-- **Real Protocol Implementation**: True AS-REQ/TGS-REQ roasting (no fakes).
-- **Advanced AD Enumeration**: RBCD, S4U, DCSync, and AD CS (PKINIT) analysis.
-- **Zero Noise**: Pruned of >70% bloat; focused entirely on real-world reliability.
-- **Offline Mode**: Analyze CSV/JSON/LDIF exports with `kerb-sleuth -f users.csv`.
-
----
-
-## 🚩 **COMMON FLAGS**
-
-| Flag | Description |
-| :--- | :--- |
-| `<target>` | DC IP or Hostname (can be anywhere in command) |
-| `-u` | Username (`user`, `DOMAIN\user`, or `user@domain`) |
-| `-p` | Password |
-| `-d` | Domain name (auto-detected if omitted) |
-| `-k` | Skip TLS certificate verification (Insecure mode) |
-| `-A` | **Full Advanced Analysis** (RBCD, S4U, DCSync, PKINIT) |
-| `--crack` | Extract hashes and run cracker (requires `--yes`) |
-| `-o` | Custom output file (default: `<target>_results.json`) |
-| `-f` | Offline file analysis (CSV/JSON/LDIF) |
-
----
-
-## 🚀 **INSTALLATION**
+Ensure you have Go installed on your system.
 
 ```bash
-# Build from source
 git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
-cd KERB-SLEUTH && go build -o kerb-sleuth ./cmd/kerb-sleuth
+cd KERB-SLEUTH
+go build -o kerb-sleuth ./cmd/kerb-sleuth/
 ```
 
----
+## Usage
 
-<div align="center">
+### Basic Authenticated Scan
+```bash
+./kerb-sleuth <target_ip> -u <user> -p <pass> -d <domain>
+```
 
-**⭐ Star this repo if you find it useful! ⭐**
+### Deep Dive Analysis (All Modules)
+```bash
+./kerb-sleuth <target_ip> -u <user> -p <pass> -d <domain> -A
+```
 
-*Made with :D by [@thechosenone-shall-prevail](https://github.com/thechosenone-shall-prevail)*
+### Full Recon & Hash Extraction
+```bash
+./kerb-sleuth <target_ip> -u <user> -p <pass> --crack --yes
+```
 
-</div>
+## Output Format
+
+KERB-SLEUTH prioritizes clean, actionable data. All findings are consolidated into a single `results.json` file, including:
+- **Domain Metadata**: OS Version, Functional Level, and Base DN.
+- **Recon Insights**: Automated flagging of high-risk accounts and unique group counts.
+- **Advanced Findings**: SMB shares, GPP credentials, and delegation paths.
+
+## Legal Disclaimer
+
+This tool is designed for authorized security assessments and educational research only. Unauthorized access to computer systems is illegal. The developers assume no liability for misuse of this utility.
+
+## License
+
+Standard [MIT License](LICENSE).
