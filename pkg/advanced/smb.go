@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hirochachacha/go-smb2"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/util"
 )
 
 // GPPSimpleResult represents a found password in GPP
