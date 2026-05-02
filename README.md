@@ -1,9 +1,6 @@
 # Active Directory Kerberos Security Scanner
 
-![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH)
-![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH)
-![Go version](https://img.shields.io/github/go-mod/go-version/thechosenone-shall-prevail/KERB-SLEUTH)
-![Platform](https://img.shields.io/badge/platform-windows%20%7C%20linux-blue)
+![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH) ![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH) ![Go version](https://img.shields.io/github/go-mod/go-version/thechosenone-shall-prevail/KERB-SLEUTH) ![Platform](https://img.shields.io/badge/platform-windows-blue)
 
 🩸 BLEEDING WINDOWS AUTHENTICATION 🩸
 
