@@ -67,7 +67,7 @@ func main() {
 		Target:   *target,
 		BindUser: bindUser,
 		BindPass: *pass,
-		Timeout:  10,
+		Timeout:  10 * time.Second,
 	}
 
 	log.Printf("[*] Auto-detecting connection to %s …", *target)
