@@ -249,13 +249,37 @@ func main() {
 	}
 
 	// ── predator context engine ──────────────────────────────────────────
-	results.RiskInsights = generateRiskInsights(users, advResults)
+	riskInsights, newCandidates := generateRiskInsights(users, advResults)
+	results.RiskInsights = riskInsights
+	results.Candidates = append(results.Candidates, newCandidates...)
+	
+	// Update summary with insights
+	results.Summary.ASREPCandidates = 0
+	results.Summary.KerberoastCandidates = 0
+	results.Summary.ReconCandidates = 0
+	results.Summary.HVTCandidates = 0
+	for _, c := range results.Candidates {
+		switch c.Type {
+		case "ASREP":
+			results.Summary.ASREPCandidates++
+		case "KERBEROAST":
+			results.Summary.KerberoastCandidates++
+		case "RECON":
+			results.Summary.ReconCandidates++
+		case "HVT":
+			results.Summary.HVTCandidates++
+		}
+	}
+	results.Summary.HighRiskObjects = results.Summary.ASREPCandidates + results.Summary.KerberoastCandidates + results.Summary.ReconCandidates + results.Summary.HVTCandidates
+
 	if len(results.RiskInsights) > 0 {
 		log.Printf("[!] Attack Path Insights Detected:")
 		for _, insight := range results.RiskInsights {
 			color := util.Yellow
 			if strings.Contains(insight, "[CRITICAL]") || strings.Contains(insight, "[HIGH]") {
 				color = util.Red
+			} else if strings.HasPrefix(insight, "---") || strings.HasPrefix(insight, "→") {
+				color = util.Cyan
 			}
 			log.Printf("    %s%s%s", color, insight, util.Reset)
 		}
@@ -263,10 +287,18 @@ func main() {
 
 	// ── output ───────────────────────────────────────────────────────────
 	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly)
+
+	log.Printf("[+] Results → %s", *outFile)
+	log.Printf("[+] Done: %d candidates (%d Kerberos / %d Recon / %d HVT)", 
+		results.Summary.HighRiskObjects,
+		results.Summary.ASREPCandidates+results.Summary.KerberoastCandidates,
+		results.Summary.ReconCandidates,
+		results.Summary.HVTCandidates)
 }
 
-func generateRiskInsights(users []ingest.User, advResults map[string]interface{}) []string {
+func generateRiskInsights(users []ingest.User, advResults map[string]interface{}) ([]string, []krb.Candidate) {
 	var insights []string
+	var candidates []krb.Candidate
 	
 	// Check for High Value Targets (Admins)
 	for _, u := range users {
@@ -281,25 +313,37 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 
 		if isAdmin {
 			insights = append(insights, fmt.Sprintf("[CRITICAL] High Value Target: %s (Admin Privileges Detected)", u.SamAccountName))
+			candidates = append(candidates, krb.Candidate{
+				SamAccountName: u.SamAccountName,
+				Type:           "HVT",
+				Score:          90,
+				Reasons:        []string{"High Value Target: Domain/Enterprise Admin"},
+			})
 		}
 		
 		// Search Description for passwords
-		patterns := []string{"pass", "pwd", "welcome", "123", "account", "login"}
+		patterns := []string{"password", "pass:", "pwd=", "secret", "creds"}
 		desc := strings.ToLower(u.Description)
 		for _, p := range patterns {
 			if strings.Contains(desc, p) {
 				insights = append(insights, fmt.Sprintf("[HIGH] Potential credential in Description: %s (Found keyword: '%s')", u.SamAccountName, p))
+				candidates = append(candidates, krb.Candidate{
+					SamAccountName: u.SamAccountName,
+					Type:           "RECON",
+					Score:          80,
+					Reasons:        []string{fmt.Sprintf("Potential credential in Description (Keyword: %s)", p)},
+				})
 				break
 			}
 		}
 		
 		// Service Accounts
-		if strings.HasPrefix(strings.ToLower(u.SamAccountName), "svc_") || strings.Contains(strings.ToLower(u.Description), "service") {
+		if strings.HasPrefix(strings.ToLower(u.SamAccountName), "svc_") || (strings.Contains(strings.ToLower(u.Description), "service") && !strings.Contains(strings.ToLower(u.Description), "account")) {
 			 insights = append(insights, fmt.Sprintf("[INFO] Service account detected: %s (Check for weak/reused passwords)", u.SamAccountName))
 		}
 		
 		// Inactive users with potentially stale passwords
-		if u.LastLogon.IsZero() && !u.PwdLastSet.IsZero() {
+		if u.LastLogon.IsZero() && !u.PwdLastSet.IsZero() && !strings.Contains(strings.ToLower(u.SamAccountName), "guest") {
 			 insights = append(insights, fmt.Sprintf("[MEDIUM] Inactive user with set password: %s (Potential stale credentials)", u.SamAccountName))
 		}
 	}
@@ -314,6 +358,12 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 			}
 			for s, count := range sharesFound {
 				insights = append(insights, fmt.Sprintf("[HIGH] READ access to juicy share: %s (Found %d sensitive files)", s, count))
+				candidates = append(candidates, krb.Candidate{
+					SamAccountName: s,
+					Type:           "RECON",
+					Score:          85,
+					Reasons:        []string{fmt.Sprintf("Readable juicy share: %s with %d sensitive files", s, count)},
+				})
 			}
 		}
 	}
@@ -324,7 +374,37 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 		}
 	}
 
-	return insights
+	// ── strategic roadmap ──────────────────────────────────────────────
+	if len(insights) > 0 {
+		insights = append(insights, "--- Tactical Attack Chain ---")
+		step := 1
+		
+		// Step 1: Recon/Credentials
+		if strings.Contains(strings.Join(insights, ""), "juicy share") {
+			insights = append(insights, fmt.Sprintf("Step %d: Enumerate sensitive shares (Logs/Backup) to harvest plaintext credentials.", step))
+			step++
+		} else if strings.Contains(strings.Join(insights, ""), "Description") {
+			insights = append(insights, fmt.Sprintf("Step %d: Extract credentials from LDAP 'Description' fields.", step))
+			step++
+		}
+		
+		// Step 2: Escalation
+		if val, ok := advResults["pwned"]; ok && val.(bool) {
+			insights = append(insights, fmt.Sprintf("Step %d: Leverage LOCAL ADMIN access to dump SAM/LSA secrets or pivot.", step))
+			step++
+		} else {
+			insights = append(insights, fmt.Sprintf("Step %d: Use harvested credentials to test against SMB, WinRM, and RDP.", step))
+			step++
+		}
+
+		// Step 3: Domain Compromise
+		if strings.Contains(strings.Join(insights, ""), "High Value Target") {
+			insights = append(insights, fmt.Sprintf("Step %d: Target identified Domain Admins for full domain compromise.", step))
+			step++
+		}
+	}
+
+	return insights, candidates
 }
 
 func runProtocolDiscovery(target string) {
