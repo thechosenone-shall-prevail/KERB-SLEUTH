@@ -155,8 +155,9 @@ func (sa *SMBAnalyzer) walk(fs *smb2.Share, path string, depth, maxDepth int, ex
 				Modified: stat.ModTime(),
 			}
 
-			// RAID AND DOWNLOAD
-			loot := sa.RaidFileForSecrets(fs, fullName)
+	// RAID AND DOWNLOAD
+	log.Printf("    [*] Raiding %s for secrets...", fullName)
+	loot := sa.RaidFileForSecrets(fs, fullName)
 			if len(loot) > 0 {
 				finding.LootFound = loot
 			}
@@ -189,11 +190,12 @@ func (s *SMBAnalyzer) RaidFileForSecrets(fs *smb2.Share, path string) []string {
 	}
 	content := string(buf[:n])
 
-	// Regex patterns for secrets
+	// Aggressive Regex patterns for secrets (including natural language)
 	patterns := map[string]string{
-		"Password": `(?i)(password|pass|pwd|passwd)\s*[:=]\s*([^\s"';]+)`,
-		"Secret":   `(?i)(secret|token|key|cred)\s*[:=]\s*([^\s"';]+)`,
-		"Generic":  `(?i)(login|user|admin)\s*[:=]\s*([^\s"';]+)`,
+		"Password": `(?i)(password|pass|pwd|passwd|secret)\s*(is|[:=])\s*([^\s"';]+)`,
+		"Token":    `(?i)(token|key|api|cred|creds)\s*(is|[:=])\s*([^\s"';]+)`,
+		"Generic":  `(?i)(login|user|admin)\s*(is|[:=])\s*([^\s"';]+)`,
+		"Naked":    `(?i)(password|pwd|secret)\s*([^\s"';]{6,})`, // Catch "password Summer2025!"
 	}
 
 	var loot []string
