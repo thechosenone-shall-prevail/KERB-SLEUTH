@@ -284,11 +284,22 @@ func (c *LDAPClient) GetDomainInfo() (*DomainInfo, error) {
 	}
 
 	entry := sr.Entries[0]
+	
+	// Map functional levels
+	flMap := map[string]string{
+		"0": "2000", "1": "2003 Mixed", "2": "2003", "3": "2008", 
+		"4": "2008 R2", "5": "2012", "6": "2012 R2", "7": "2016",
+	}
+	fl := entry.GetAttributeValue("domainFunctionality")
+	if val, ok := flMap[fl]; ok {
+		fl = val
+	}
+
 	info := &DomainInfo{
 		BaseDN:          c.baseDN,
 		DNSHostName:     entry.GetAttributeValue("dnsHostName"),
 		LDAPService:     entry.GetAttributeValue("ldapServiceName"),
-		FunctionalLevel: entry.GetAttributeValue("domainFunctionality"),
+		FunctionalLevel: fl,
 	}
 
 	// Try to get OS version from the DC computer object
@@ -412,14 +423,18 @@ func getBaseDN(conn *ldap.Conn) (string, error) {
 }
 
 func parseWindowsTimestamp(timestamp string) time.Time {
-	if timestamp == "" || timestamp == "0" {
+	if timestamp == "" || timestamp == "0" || timestamp == "9223372036854775807" {
 		return time.Time{}
 	}
 
 	// Windows FILETIME: 100-nanosecond intervals since 1601-01-01
 	if ts, err := strconv.ParseInt(timestamp, 10, 64); err == nil {
+		// To avoid int64 overflow when multiplying by 100ns, 
+		// we convert to seconds first.
+		seconds := ts / 10000000
+		nanos := (ts % 10000000) * 100
 		windowsEpoch := time.Date(1601, 1, 1, 0, 0, 0, 0, time.UTC)
-		return windowsEpoch.Add(time.Duration(ts) * 100 * time.Nanosecond)
+		return windowsEpoch.Add(time.Duration(seconds) * time.Second).Add(time.Duration(nanos) * time.Nanosecond)
 	}
 	return time.Time{}
 }

@@ -3,7 +3,6 @@ package advanced
 import (
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 )
@@ -13,7 +12,6 @@ type AdvancedAnalyzer struct {
 	Client        *krb.LDAPClient
 	AuditMode     bool
 	DangerousMode bool
-	OutputDir     string
 	Target        string
 	Username      string
 	Password      string
@@ -22,17 +20,11 @@ type AdvancedAnalyzer struct {
 }
 
 // NewAdvancedAnalyzer creates a new advanced analyzer
-func NewAdvancedAnalyzer(client *krb.LDAPClient, auditMode, dangerousMode bool, outputDir string, target, user, pass, domain string) *AdvancedAnalyzer {
-	// Create output directory
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		log.Printf("[x] Failed to create output directory: %v", err)
-	}
-
+func NewAdvancedAnalyzer(client *krb.LDAPClient, auditMode, dangerousMode bool, target, user, pass, domain string) *AdvancedAnalyzer {
 	return &AdvancedAnalyzer{
 		Client:        client,
 		AuditMode:     auditMode,
 		DangerousMode: dangerousMode,
-		OutputDir:     outputDir,
 		Target:        target,
 		Username:      user,
 		Password:      pass,
@@ -45,7 +37,7 @@ func NewAdvancedAnalyzer(client *krb.LDAPClient, auditMode, dangerousMode bool, 
 func (aa *AdvancedAnalyzer) RunTimeroastingAnalysis(kirbiPath string, spns []string) error {
 	log.Printf("[*] Starting Timeroasting analysis...")
 
-	analyzer := NewTimeroastAnalyzer(true, true, aa.OutputDir)
+	analyzer := NewTimeroastAnalyzer(true, true, "")
 
 	var results []*TimeroastResult
 
@@ -169,11 +161,6 @@ func (aa *AdvancedAnalyzer) RunOverpassAnalysis(hashes map[string]string) error 
 		}
 	}
 
-	// Export results
-	if len(results) > 0 {
-		return analyzer.ExportOverpassHashes(results, aa.OutputDir)
-	}
-
 	return nil
 }
 
@@ -196,12 +183,6 @@ func (aa *AdvancedAnalyzer) RunTicketAnalysis(ticketData []byte, ticketType stri
 		for _, indicator := range result.ForgeryIndicators {
 			log.Printf("   - %s", indicator)
 		}
-	}
-
-	// Export results if in dangerous mode
-	if aa.DangerousMode && result.Hash != "" {
-		results := []*TicketResult{result}
-		return analyzer.ExportTicketHashes(results, aa.OutputDir)
 	}
 
 	return nil
@@ -287,7 +268,7 @@ func (aa *AdvancedAnalyzer) RunTicketLifetimeAnalysis(ticketData []map[string]in
 	log.Printf("[+] Generated heatmap with lifetime ranges: %v", heatmap)
 
 	// Export analysis
-	return analyzer.ExportAnalysis(aa.OutputDir)
+	return nil
 }
 
 // RunLoggingAnalysis runs logging and detection analysis
@@ -300,17 +281,7 @@ func (aa *AdvancedAnalyzer) RunLoggingAnalysis() error {
 	rules := analyzer.GenerateSigmaRules()
 	log.Printf("[+] Generated %d Sigma detection rules", len(rules))
 
-	// Export formats
-	splunkFile := fmt.Sprintf("%s/splunk_events.json", aa.OutputDir)
-	if err := analyzer.ExportSplunkFormat(splunkFile); err != nil {
-		log.Printf("[x] Failed to export Splunk format: %v", err)
-	}
-
-	iocFile := fmt.Sprintf("%s/iocs.txt", aa.OutputDir)
-	if err := analyzer.ExportIOCs(iocFile); err != nil {
-		log.Printf("[x] Failed to export IOCs: %v", err)
-	}
-
+	// Export formats (skipped in Deep Dive mode)
 	return nil
 }
 
@@ -358,6 +329,12 @@ func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 			log.Printf("   - %s", share)
 		}
 		aa.Results["shares"] = shares
+
+		// Check for Pwned status
+		if admin, _ := analyzer.CheckAdminAccess(); admin {
+			log.Printf("%s[+] SMB [Pwned!] - Administrative access detected%s", "\033[1;32m", "\033[0m")
+			aa.Results["pwned"] = true
+		}
 	}
 
 	// Scan for GPP passwords

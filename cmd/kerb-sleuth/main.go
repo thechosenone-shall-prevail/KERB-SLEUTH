@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,7 @@ func main() {
 	timeout := flag.Duration("timeout", 10*time.Second, "Connection timeout")
 
 	// Output
-	outFile := flag.String("o", "", "Output file  (default: <target>_results.json)")
+	outFile := flag.String("o", "results.json", "Output file")
 	csvOut := flag.Bool("csv", false, "Also write CSV")
 	siem := flag.Bool("siem", false, "Also write Sigma rules")
 	jsonOnly := flag.Bool("json", false, "Print JSON to stdout (no file)")
@@ -128,15 +129,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	// ── protocol discovery ───────────────────────────────────────────────
+	runProtocolDiscovery(target)
+
 	// ── build credentials string ─────────────────────────────────────────
 	bindUser := *user
 	if *domain != "" && bindUser != "" && !strings.Contains(bindUser, "\\") && !strings.Contains(bindUser, "@") {
 		bindUser = *domain + "\\" + bindUser
-	}
-
-	if *outFile == "" {
-		safeTarget := strings.ReplaceAll(strings.ReplaceAll(target, ".", "_"), ":", "_")
-		*outFile = safeTarget + "_results.json"
 	}
 
 	// ── connect ──────────────────────────────────────────────────────────
@@ -174,6 +173,18 @@ func main() {
 
 	log.Printf("[+] %d AS-REP roastable  |  %d Kerberoastable", len(asrep), len(kerb))
 
+	// ── recon insights ──────────────────────────────────────────────────
+	groupSet := make(map[string]bool)
+	highRisk := 0
+	for _, u := range users {
+		for _, g := range u.MemberOf {
+			groupSet[g] = true
+			if strings.Contains(strings.ToLower(g), "admin") || strings.Contains(strings.ToLower(g), "domain controllers") {
+				highRisk++
+			}
+		}
+	}
+
 	results := output.Results{
 		Domain: output.DomainInfo{
 			Name:            domainInfo.DomainName,
@@ -185,6 +196,8 @@ func main() {
 			TotalUsers:           len(users),
 			ASREPCandidates:      len(asrep),
 			KerberoastCandidates: len(kerb),
+			TotalGroups:          len(groupSet),
+			HighRiskObjects:      highRisk,
 		},
 		Candidates: all,
 		Users:      users,
@@ -229,8 +242,38 @@ func main() {
 	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly)
 }
 
+func runProtocolDiscovery(target string) {
+	log.Printf("[*] Discovering active services on %s...", target)
+	
+	protocols := []struct {
+		name  string
+		port  int
+		color string
+	}{
+		{"LDAP", 389, util.Cyan},
+		{"SMB", 445, util.Green},
+		{"WinRM", 5985, util.Yellow},
+		{"RDP", 3389, util.Magenta},
+		{"RPC", 135, util.Blue},
+	}
+
+	hits := []string{}
+	for _, p := range protocols {
+		addr := fmt.Sprintf("%s:%d", target, p.port)
+		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+		if err == nil {
+			conn.Close()
+			hits = append(hits, fmt.Sprintf("%s%s:%d%s", p.color, p.name, p.port, util.Reset))
+		}
+	}
+
+	if len(hits) > 0 {
+		log.Printf("[+] Services detected: %s", strings.Join(hits, " | "))
+	}
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
-// HELP
+// ADVANCED MODULES
 // ═══════════════════════════════════════════════════════════════════════════
 
 func printUsage() {
@@ -423,8 +466,7 @@ func runRealKerberos(target, user, pass string) {
 func runAdvanced(client *krb.LDAPClient, cfg *triage.Config, all, auditMode, rbcd, s4u, dcsync, pkinit bool, target, user, pass, domain string) map[string]interface{} {
 	log.Printf("[*] Running advanced analysis …")
 
-	outDir := "advanced_results"
-	a := advanced.NewAdvancedAnalyzer(client, auditMode, false, outDir, target, user, pass, domain)
+	a := advanced.NewAdvancedAnalyzer(client, auditMode, false, target, user, pass, domain)
 
 	if all {
 		a.RunFullAnalysis()

@@ -58,6 +58,32 @@ func (sa *SMBAnalyzer) EnumerateShares() ([]string, error) {
 	return shares, nil
 }
 
+// CheckAdminAccess checks if the user has administrative access (can access ADMIN$ or C$)
+func (sa *SMBAnalyzer) CheckAdminAccess() (bool, error) {
+	session, conn, err := sa.createSession()
+	if err != nil {
+		return false, err
+	}
+	defer session.Logoff()
+	defer conn.Close()
+
+	// Try to mount ADMIN$
+	fs, err := session.Mount("ADMIN$")
+	if err == nil {
+		fs.Umount()
+		return true, nil
+	}
+
+	// Fallback to C$
+	fs, err = session.Mount("C$")
+	if err == nil {
+		fs.Umount()
+		return true, nil
+	}
+
+	return false, nil
+}
+
 // ScanGPP searches SYSVOL for GPP passwords
 func (sa *SMBAnalyzer) ScanGPP() ([]GPPSimpleResult, error) {
 	log.Printf("[*] Searching SYSVOL for Group Policy Preferences (GPP) passwords...")
