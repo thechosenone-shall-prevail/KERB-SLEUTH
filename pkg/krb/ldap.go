@@ -227,6 +227,7 @@ func (c *LDAPClient) EnumerateUsers() ([]ingest.User, error) {
 	log.Printf("[+] Found %d user objects", len(sr.Entries))
 
 	var users []ingest.User
+	for _, entry := range sr.Entries {
 		user := ingest.User{
 			SamAccountName:             entry.GetAttributeValue("sAMAccountName"),
 			DistinguishedName:          entry.GetAttributeValue("distinguishedName"),
