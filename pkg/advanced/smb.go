@@ -45,9 +45,19 @@ type SMBAnalyzer struct {
 }
 
 func NewSMBAnalyzer(target, username, password, domain string) *SMBAnalyzer {
+	// Sanitize username: remove domain if it's already there (e.g. DOMAIN\user -> user)
+	cleanUser := username
+	if strings.Contains(username, "\\") {
+		parts := strings.Split(username, "\\")
+		cleanUser = parts[len(parts)-1]
+	} else if strings.Contains(username, "@") {
+		parts := strings.Split(username, "@")
+		cleanUser = parts[0]
+	}
+
 	return &SMBAnalyzer{
 		Target:   target,
-		Username: username,
+		Username: cleanUser,
 		Password: password,
 		Domain:   domain,
 	}
