@@ -79,12 +79,8 @@ func (sa *SMBAnalyzer) ScanGPP() ([]GPPSimpleResult, error) {
 	var results []GPPSimpleResult
 
 	// Common GPP XML paths
-	paths := []string{
-		"Policies",
-	}
-
-	// We'll recursively search for .xml files in Policies
-	err = sa.walkGPP(fs, paths[0], &results)
+	// We'll search from the root of the share to find the domain-specific folders
+	err = sa.walkGPP(fs, ".", &results)
 	if err != nil {
 		log.Printf("[!] Error walking SYSVOL: %v", err)
 	}
