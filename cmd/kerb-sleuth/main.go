@@ -47,12 +47,12 @@ func main() {
 	}
 
 	if *target == "" {
-		util.DisplayBanner("v3.3.0")
+		util.DisplayBanner("v4.2.0")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	util.DisplayBanner("v3.3.0")
+	util.DisplayBanner("v4.2.0")
 
 	// Initial protocol discovery
 	runProtocolDiscovery(*target)

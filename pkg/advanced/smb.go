@@ -6,8 +6,10 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"log"
 	"net"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -152,10 +154,17 @@ func (sa *SMBAnalyzer) walk(fs *smb2.Share, path string, depth, maxDepth int, ex
 				Modified: stat.ModTime(),
 			}
 
-			// RAID THE FILE FOR SECRETS
+			// RAID AND DOWNLOAD
 			loot := sa.RaidFileForSecrets(fs, fullName)
 			if len(loot) > 0 {
 				finding.LootFound = loot
+			}
+
+			// AUTO-DOWNLOAD
+			localPath := filepath.Join("loot", share, fullName)
+			os.MkdirAll(filepath.Dir(localPath), 0755)
+			if err := sa.DownloadFile(fs, fullName, localPath); err == nil {
+				log.Printf("    %s[+] Downloaded: %s → %s%s", util.Green, fullName, localPath, util.Reset)
 			}
 
 			*findings = append(*findings, finding)
@@ -202,6 +211,24 @@ func (s *SMBAnalyzer) RaidFileForSecrets(fs *smb2.Share, path string) []string {
 	}
 
 	return loot
+}
+
+// DownloadFile downloads a file from an SMB share to a local path
+func (s *SMBAnalyzer) DownloadFile(fs *smb2.Share, remotePath, localPath string) error {
+	f, err := fs.Open(remotePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	local, err := os.Create(localPath)
+	if err != nil {
+		return err
+	}
+	defer local.Close()
+
+	_, err = io.Copy(local, f)
+	return err
 }
 
 // CheckAdminAccess checks if the user has administrative access (can access ADMIN$ or C$)
