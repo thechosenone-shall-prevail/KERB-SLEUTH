@@ -1,0 +1,2 @@
+samAccountName,distinguishedName,doesNotRequirePreAuth,userAccountControl
+testuser,CN=testuser,OU=Users,DC=corp,DC=local,true,512

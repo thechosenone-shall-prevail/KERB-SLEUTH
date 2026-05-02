@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  kerb-sleuth:
+    build: .
+    image: kerb-sleuth:latest
+    container_name: kerb-sleuth
+    volumes:
+      # Mount local data directory for input/output
+      - ./data:/data
+      # Mount results directory
+      - ./results:/home/sleuth/results
+    working_dir: /home/sleuth
+    # Override default CMD to keep container running
+    entrypoint: ["tail", "-f", "/dev/null"]
+    restart: unless-stopped
+    
+  # Development container with shell access
+  kerb-sleuth-dev:
+    build: .
+    image: kerb-sleuth:latest
+    container_name: kerb-sleuth-dev
+    volumes:
+      - ./data:/data
+      - ./results:/home/sleuth/results
+      - .:/home/sleuth/src:ro
+    working_dir: /home/sleuth
+    entrypoint: ["/bin/sh"]
+    stdin_open: true
+    tty: true
+    profiles:
+      - dev

@@ -1,0 +1,24 @@
+weights:
+  asrep_base: 50
+  asrep_preauth: 20
+  asrep_pwd_old: 15
+  asrep_admin_group: 10
+  asrep_disabled_penalty: -20
+  
+  kerberoast_base: 40
+  kerberoast_spn: 20
+  kerberoast_pwd_old: 15
+
+thresholds:
+  high: 80
+  medium: 50
+
+time:
+  pwd_old_days: 90
+
+admin_groups:
+  - "CN=Domain Admins"
+  - "CN=Enterprise Admins"
+  - "CN=Schema Admins"
+  - "Administrators"
+  - "Backup Operators"
