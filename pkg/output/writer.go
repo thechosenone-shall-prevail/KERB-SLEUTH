@@ -40,6 +40,7 @@ type Summary struct {
 	KerberoastCandidates int `json:"kerberoast_candidates"`
 	ReconCandidates      int `json:"recon_candidates"`
 	HVTCandidates        int `json:"hvt_candidates"`
+	LootCandidates       int `json:"loot_candidates"`
 	TotalGroups          int `json:"total_groups"`
 	HighRiskObjects      int `json:"high_risk_objects"`
 }

@@ -187,6 +187,7 @@ func main() {
 	results.Summary.KerberoastCandidates = 0
 	results.Summary.ReconCandidates = 0
 	results.Summary.HVTCandidates = 0
+	results.Summary.LootCandidates = 0
 	for _, c := range results.Candidates {
 		switch c.Type {
 		case "ASREP":
@@ -197,9 +198,11 @@ func main() {
 			results.Summary.ReconCandidates++
 		case "HVT":
 			results.Summary.HVTCandidates++
+		case "LOOT":
+			results.Summary.LootCandidates++
 		}
 	}
-	results.Summary.HighRiskObjects = results.Summary.ASREPCandidates + results.Summary.KerberoastCandidates + results.Summary.ReconCandidates + results.Summary.HVTCandidates
+	results.Summary.HighRiskObjects = results.Summary.ASREPCandidates + results.Summary.KerberoastCandidates + results.Summary.ReconCandidates + results.Summary.HVTCandidates + results.Summary.LootCandidates
 
 	if len(results.RiskInsights) > 0 {
 		log.Printf("%s[!] Attack Path Insights Detected:%s", util.Red, util.Reset)
@@ -329,19 +332,30 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 			})
 		}
 		
-		// Search Description for passwords
-		patterns := []string{"password", "pass:", "pwd=", "secret", "creds"}
-		desc := strings.ToLower(u.Description)
-		for _, p := range patterns {
-			if strings.Contains(desc, p) {
-				insights = append(insights, fmt.Sprintf("[HIGH] Potential credential in Description: %s (Found keyword: '%s')", u.SamAccountName, p))
-				candidates = append(candidates, krb.Candidate{
-					SamAccountName: u.SamAccountName,
-					Type:           "RECON",
-					Score:          80,
-					Reasons:        []string{fmt.Sprintf("Potential credential in Description (Keyword: %s)", p)},
-				})
-				break
+		// --- DEEP LDAP ATTRIBUTE MINING ---
+		lootAttributes := map[string]string{
+			"Description": u.Description,
+			"Info":        u.Info,
+			"Comment":     u.Comment,
+			"Office":      u.PhysicalDeliveryOfficeName,
+			"Notes":       u.PostOfficeBox,
+		}
+
+		patterns := []string{"password", "pass:", "pwd=", "secret", "creds", "token"}
+		
+		for attrName, attrValue := range lootAttributes {
+			lowerValue := strings.ToLower(attrValue)
+			for _, p := range patterns {
+				if strings.Contains(lowerValue, p) {
+					insights = append(insights, fmt.Sprintf("[CRITICAL] LOOT FOUND in LDAP %s of %s (Found keyword: '%s')", attrName, u.SamAccountName, p))
+					candidates = append(candidates, krb.Candidate{
+						SamAccountName: u.SamAccountName,
+						Type:           "LOOT",
+						Score:          100,
+						Reasons:        []string{fmt.Sprintf("Plaintext secret found in LDAP %s: %s", attrName, attrValue)},
+					})
+					break
+				}
 			}
 		}
 		

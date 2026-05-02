@@ -9,7 +9,7 @@ import (
 
 type Candidate struct {
 	SamAccountName string
-	Type           string // "ASREP" | "KERBEROAST"
+	Type           string // "ASREP" | "KERBEROAST" | "RECON" | "HVT" | "LOOT"
 	Score          int
 	Reasons        []string
 	SPNs           []string
