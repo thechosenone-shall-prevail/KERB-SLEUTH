@@ -12,6 +12,10 @@ type Candidate struct {
 	Type           string // "ASREP" | "KERBEROAST" | "RECON" | "HVT" | "LOOT"
 	Score          int
 	Reasons        []string
+	Validation     string   `json:"validation,omitempty"` // validated | likely | theoretical | blocked | insufficient_visibility
+	Evidence       []string `json:"evidence,omitempty"`
+	Blockers       []string `json:"blockers,omitempty"`
+	NextActions    []string `json:"next_actions,omitempty"`
 	SPNs           []string
 	PwdLastSet     time.Time
 	MemberOf       []string

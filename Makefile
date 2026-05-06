@@ -1,4 +1,4 @@
-.PHONY: build test clean simulate install build-all docker-build docker-run release
+.PHONY: build test clean install build-all docker-build docker-run release
 
 BINARY_NAME=kerb-sleuth
 VERSION=$(shell git describe --tags --always --dirty)
@@ -24,14 +24,8 @@ clean:
 	rm -f results.json summary.csv sigma_rules.yml test_results.json
 	rm -f coverage.out coverage.html
 
-simulate:
-	go run ./cmd/kerb-sleuth simulate --dataset small --out tests/sample_data/
-
 install: build
 	sudo mv ${BINARY_NAME} /usr/local/bin/
-
-run-example: build simulate
-	./${BINARY_NAME} scan --ad tests/sample_data/users_small.csv --out results.json --csv --siem
 
 fmt:
 	go fmt ./...

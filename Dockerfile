@@ -36,7 +36,6 @@ WORKDIR /home/sleuth/
 # Copy the binary from builder stage
 COPY --from=builder /app/kerb-sleuth .
 COPY --from=builder /app/configs ./configs/
-COPY --from=builder /app/tests/sample_data ./tests/sample_data/
 
 # Change ownership
 RUN chown -R sleuth:sleuth /home/sleuth/

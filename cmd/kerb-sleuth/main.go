@@ -17,6 +17,7 @@ import (
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/output"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/reasoning"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/triage"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/util"
 )
@@ -81,7 +82,7 @@ func main() {
 	util.DisplayBanner("v5.1.0")
 
 	// Initial protocol discovery
-	runProtocolDiscovery(*target)
+	services := runProtocolDiscovery(*target)
 
 	// Connection parameters
 	bindUser := *user
@@ -199,12 +200,12 @@ func main() {
 	// ── hash extraction & cracking ───────────────────────────────────────
 	if isAggressive && *crackWordlist != "" {
 		log.Printf("[*] Hash cracking enabled with wordlist: %s", *crackWordlist)
-		extractAndCrack(all, *crackWordlist, client)
+		extractAndCrack(results.Candidates, *crackWordlist, client)
 	}
 
 	// ── real Kerberos protocol ───────────────────────────────────────────
 	if isAggressive {
-		runRealKerberos(client, effectiveDomain(domainInfo, *domain), all)
+		results.Candidates = runRealKerberos(client, effectiveDomain(domainInfo, *domain), results.Candidates)
 	}
 
 	// ── advanced modules ─────────────────────────────────────────────────
@@ -223,7 +224,7 @@ func main() {
 			results.Advanced.SensitiveFiles = val.([]advanced.FileFinding)
 		}
 		if val, ok := advResults["gpp"]; ok {
-			results.Advanced.GPPHashes = val.([]interface{})
+			results.Advanced.GPPHashes = val
 		}
 		if val, ok := advResults["dcsync"]; ok {
 			results.Advanced.DCSync = val
@@ -261,6 +262,15 @@ func main() {
 	riskInsights, newCandidates := generateRiskInsights(users, advResults)
 	results.RiskInsights = riskInsights
 	results.Candidates = append(results.Candidates, newCandidates...)
+	results.Candidates = reasoning.AnnotateCandidates(results.Candidates)
+	graph := reasoning.BuildGraph(reasoning.BuildContext{
+		Target:      *target,
+		Domain:      *domain,
+		CurrentUser: bindUser,
+		Mode:        *mode,
+		Services:    services,
+	}, users, results.Candidates, advResults)
+	results.AttackGraph = &graph
 
 	// Update summary with insights
 	results.Summary.ASREPCandidates = 0
@@ -268,6 +278,7 @@ func main() {
 	results.Summary.ReconCandidates = 0
 	results.Summary.HVTCandidates = 0
 	results.Summary.LootCandidates = 0
+	results.Summary.ValidationStatus = make(map[string]int)
 	for _, c := range results.Candidates {
 		switch c.Type {
 		case "ASREP":
@@ -280,6 +291,9 @@ func main() {
 			results.Summary.HVTCandidates++
 		case "LOOT":
 			results.Summary.LootCandidates++
+		}
+		if c.Validation != "" {
+			results.Summary.ValidationStatus[c.Validation]++
 		}
 	}
 	results.Summary.HighRiskObjects = results.Summary.ASREPCandidates + results.Summary.KerberoastCandidates + results.Summary.ReconCandidates + results.Summary.HVTCandidates + results.Summary.LootCandidates
@@ -488,10 +502,10 @@ func extractAndCrack(candidates []krb.Candidate, wordlist string, client *krb.LD
 	}
 }
 
-func runRealKerberos(client *krb.LDAPClient, domain string, candidates []krb.Candidate) {
+func runRealKerberos(client *krb.LDAPClient, domain string, candidates []krb.Candidate) []krb.Candidate {
 	log.Printf("[*] Running real Kerberos interactions (extract hashes to candidates)...")
 	if domain == "" {
-		return
+		return candidates
 	}
 	for i := range candidates {
 		switch candidates[i].Type {
@@ -515,6 +529,7 @@ func runRealKerberos(client *krb.LDAPClient, domain string, candidates []krb.Can
 		}
 		time.Sleep(120 * time.Millisecond)
 	}
+	return candidates
 }
 
 func effectiveDomain(di *krb.DomainInfo, flagDomain string) string {
@@ -663,7 +678,7 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 	return insights, candidates
 }
 
-func runProtocolDiscovery(target string) {
+func runProtocolDiscovery(target string) []string {
 	log.Printf("[*] Discovering active services on %s...", target)
 
 	ports := map[int]string{
@@ -683,7 +698,7 @@ func runProtocolDiscovery(target string) {
 
 	var hits []string
 	for port, name := range ports {
-		address := fmt.Sprintf("%s:%d", target, port)
+		address := net.JoinHostPort(target, fmt.Sprintf("%d", port))
 		conn, err := net.DialTimeout("tcp", address, 1*time.Second)
 		if err == nil {
 			hits = append(hits, fmt.Sprintf("%s:%d", name, port))
@@ -694,4 +709,5 @@ func runProtocolDiscovery(target string) {
 	if len(hits) > 0 {
 		log.Printf("%s[+] Services detected: %s%s", util.Green, strings.Join(hits, " | "), util.Reset)
 	}
+	return hits
 }

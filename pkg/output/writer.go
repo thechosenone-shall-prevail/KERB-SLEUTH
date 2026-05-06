@@ -12,18 +12,20 @@ import (
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/advanced"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/reasoning"
 	"gopkg.in/yaml.v3"
 )
 
 // Results is the top-level output structure
 type Results struct {
-	SchemaVersion string          `json:"schema_version,omitempty"`
-	Domain        DomainInfo      `json:"domain"`
-	Summary       Summary         `json:"summary"`
-	Candidates    []krb.Candidate `json:"candidates"`
-	RiskInsights  []string        `json:"risk_insights,omitempty"`
-	Users         []ingest.User   `json:"users"`
-	Advanced      AdvancedResults `json:"advanced,omitempty"`
+	SchemaVersion string           `json:"schema_version,omitempty"`
+	Domain        DomainInfo       `json:"domain"`
+	Summary       Summary          `json:"summary"`
+	Candidates    []krb.Candidate  `json:"candidates"`
+	RiskInsights  []string         `json:"risk_insights,omitempty"`
+	AttackGraph   *reasoning.Graph `json:"attack_graph,omitempty"`
+	Users         []ingest.User    `json:"users"`
+	Advanced      AdvancedResults  `json:"advanced,omitempty"`
 }
 
 // DomainInfo holds global domain data
@@ -36,14 +38,15 @@ type DomainInfo struct {
 
 // Summary holds high-level counts
 type Summary struct {
-	TotalUsers           int `json:"total_users"`
-	ASREPCandidates      int `json:"asrep_candidates"`
-	KerberoastCandidates int `json:"kerberoast_candidates"`
-	ReconCandidates      int `json:"recon_candidates"`
-	HVTCandidates        int `json:"hvt_candidates"`
-	LootCandidates       int `json:"loot_candidates"`
-	TotalGroups          int `json:"total_groups"`
-	HighRiskObjects      int `json:"high_risk_objects"`
+	TotalUsers           int            `json:"total_users"`
+	ASREPCandidates      int            `json:"asrep_candidates"`
+	KerberoastCandidates int            `json:"kerberoast_candidates"`
+	ReconCandidates      int            `json:"recon_candidates"`
+	HVTCandidates        int            `json:"hvt_candidates"`
+	LootCandidates       int            `json:"loot_candidates"`
+	TotalGroups          int            `json:"total_groups"`
+	HighRiskObjects      int            `json:"high_risk_objects"`
+	ValidationStatus     map[string]int `json:"validation_status,omitempty"`
 }
 
 // AdvancedResults holds detailed findings from advanced modules
@@ -51,7 +54,7 @@ type AdvancedResults struct {
 	Shares         []string               `json:"shares,omitempty"`
 	Pwned          bool                   `json:"pwned,omitempty"`
 	SensitiveFiles []advanced.FileFinding `json:"sensitive_files,omitempty"`
-	GPPHashes      []interface{}          `json:"gpp_hashes,omitempty"`
+	GPPHashes      interface{}            `json:"gpp_hashes,omitempty"`
 	DCSync         interface{}            `json:"dcsync,omitempty"`
 	Delegation     interface{}            `json:"delegation,omitempty"`
 	RBCD           interface{}            `json:"rbcd,omitempty"`
@@ -90,7 +93,7 @@ func WriteCSV(path string, results Results) error {
 	defer writer.Flush()
 
 	// Write header
-	header := []string{"SamAccountName", "Type", "Score", "Severity", "Reasons", "SPNs", "ExportHashPath"}
+	header := []string{"SamAccountName", "Type", "Score", "Severity", "Validation", "Reasons", "Evidence", "Blockers", "NextActions", "SPNs", "ExportHashPath"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -99,6 +102,9 @@ func WriteCSV(path string, results Results) error {
 	for _, candidate := range results.Candidates {
 		severity := extractSeverity(candidate.Reasons)
 		reasons := strings.Join(candidate.Reasons, "; ")
+		evidence := strings.Join(candidate.Evidence, "; ")
+		blockers := strings.Join(candidate.Blockers, "; ")
+		nextActions := strings.Join(candidate.NextActions, "; ")
 		spns := strings.Join(candidate.SPNs, "; ")
 
 		record := []string{
@@ -106,7 +112,11 @@ func WriteCSV(path string, results Results) error {
 			candidate.Type,
 			fmt.Sprintf("%d", candidate.Score),
 			severity,
+			candidate.Validation,
 			reasons,
+			evidence,
+			blockers,
+			nextActions,
 			spns,
 			candidate.ExportHashPath,
 		}
