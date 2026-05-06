@@ -2,7 +2,7 @@
 
 **Identity paths, proven cold.**
 
-![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH) ![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH) ![Go version](https://img.shields.io/github/go-mod/go-version/thechosenone-shall-prevail/KERB-SLEUTH) ![Platform](https://img.shields.io/badge/platform-windows-blue)
+![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH) ![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH) ![Go version](https://img.shields.io/github/go-mod/go-version/thechosenone-shall-prevail/cold-relay) ![Platform](https://img.shields.io/badge/platform-windows-blue)
 
 Cold Relay is a single-binary Active Directory security assessment tool for authorized operators. It collects Windows authentication evidence across LDAP, Kerberos, SMB, DNS, GPO, delegation, certificate services, sessions, and privilege metadata, then turns that evidence into deterministic findings and an offline attack graph.
 
