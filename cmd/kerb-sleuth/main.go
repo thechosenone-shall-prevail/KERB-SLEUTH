@@ -42,31 +42,28 @@ func connectWithFallback(base krb.ConnectOptions, fallback bool) (*krb.LDAPClien
 }
 
 func main() {
-	// Flags
+	// Simplified flags
 	target := flag.String("t", "", "Target IP or hostname")
 	user := flag.String("u", "", "Username for authentication")
 	pass := flag.String("p", "", "Password for authentication")
-	domain := flag.String("d", "", "Domain name (e.g. logging.htb)")
-	adv := flag.Bool("A", false, "Run advanced analysis (SMB, GPP, RBCD, etc.)")
-	audit := flag.Bool("audit", false, "Run in audit mode (safer, fewer packets)")
-	crack := flag.Bool("crack", false, "Attempt to extract and crack hashes")
-	wordlist := flag.String("w", "", "Path to wordlist for cracking")
-	authorized := flag.Bool("yes", false, "Confirm authorization for active attacks")
-	realKerb := flag.Bool("real", false, "Run real Kerberos protocol interactions")
-	rbcd := flag.Bool("rbcd", false, "Specifically run RBCD analysis")
-	s4u := flag.Bool("s4u", false, "Specifically run S4U analysis")
-	dcsync := flag.Bool("dcsync", false, "Specifically run DCSync analysis")
-	pkinit := flag.Bool("pkinit", false, "Specifically run PKINIT/AD CS analysis")
-	siem := flag.Bool("siem", false, "Generate SIEM detection rules")
+	domain := flag.String("d", "", "Domain name (auto-detected if omitted)")
+	mode := flag.String("mode", "passive", "Scan mode: [passive] for enumeration only, [aggressive] for full attacks")
 	outFile := flag.String("o", "results.json", "JSON output file")
 	csvOut := flag.String("csv", "", "Optional CSV output file")
 	jsonOnly := flag.Bool("json", false, "Output JSON to stdout only")
+
+	// Legacy/advanced flags (still available for power users)
 	ldaps := flag.Bool("ldaps", false, "Use LDAPS (port 636)")
 	starttls := flag.Bool("starttls", false, "Use STARTTLS on LDAP port 389")
 	insecure := flag.Bool("insecure", false, "Skip TLS certificate verification (insecure)")
 	cafile := flag.String("cafile", "", "PEM CA bundle file for TLS verification")
 	kdcHost := flag.String("kdc", "", "Explicit Kerberos KDC hostname or IP")
 	fallbackTLS := flag.Bool("fallback-tls", false, "If plain LDAP fails, try STARTTLS then LDAPS")
+
+	// Hidden power-user flags (not shown in help)
+	crackWordlist := flag.String("w", "", "(Advanced) Path to wordlist for cracking")
+	audit := flag.Bool("audit", false, "(Advanced) Run in audit mode")
+	siem := flag.Bool("siem", false, "(Advanced) Generate SIEM detection rules")
 
 	flag.Parse()
 
@@ -115,7 +112,7 @@ func main() {
 			connOpts.BindPass = ""
 			client, err = connectWithFallback(connOpts, *fallbackTLS)
 		}
-		
+
 		if err != nil {
 			connOpts.BindUser = *user
 			client, err = connectWithFallback(connOpts, *fallbackTLS)
@@ -185,26 +182,35 @@ func main() {
 		Users:      users,
 	}
 
+	// ── Determine mode-based behavior ─────────────────────────────────────
+	isAggressive := strings.ToLower(*mode) == "aggressive"
+	isPassive := strings.ToLower(*mode) == "passive"
+
+	if !isAggressive && !isPassive {
+		log.Fatalf("[x] Invalid mode: %s. Use 'passive' or 'aggressive'", *mode)
+	}
+
+	if isPassive {
+		log.Printf("%s[*] PASSIVE MODE: Enumeration only (no attacks)%s", util.Cyan, util.Reset)
+	} else {
+		log.Printf("%s[*] AGGRESSIVE MODE: Full attack surface enabled%s", util.Yellow, util.Reset)
+	}
+
 	// ── hash extraction & cracking ───────────────────────────────────────
-	if *crack {
-		if !*authorized {
-			log.Fatal("[x] --crack requires --yes  (confirm you are authorized)")
-		}
-		extractAndCrack(all, *wordlist, client)
+	if isAggressive && *crackWordlist != "" {
+		log.Printf("[*] Hash cracking enabled with wordlist: %s", *crackWordlist)
+		extractAndCrack(all, *crackWordlist, client)
 	}
 
 	// ── real Kerberos protocol ───────────────────────────────────────────
-	if *realKerb {
-		if !*authorized {
-			log.Fatal("[x] --real requires --yes  (confirm you are authorized)")
-		}
+	if isAggressive {
 		runRealKerberos(client, effectiveDomain(domainInfo, *domain), all)
 	}
 
 	// ── advanced modules ─────────────────────────────────────────────────
 	advResults := make(map[string]interface{})
-	if *adv || *rbcd || *s4u || *dcsync || *pkinit {
-		advResults = runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, *target, bindUser, *pass, *domain)
+	if isAggressive {
+		advResults = runAdvanced(client, cfg, true, *audit, false, false, false, false, *target, bindUser, *pass, *domain)
 
 		results.Advanced = output.AdvancedResults{}
 		if val, ok := advResults["shares"]; ok {
@@ -230,6 +236,24 @@ func main() {
 		}
 		if val, ok := advResults["pkinit"]; ok {
 			results.Advanced.PKINIT = val
+		}
+		if val, ok := advResults["trusts"]; ok {
+			results.Advanced.Trusts = val
+		}
+		if val, ok := advResults["dns_transfers"]; ok {
+			results.Advanced.DNSTransfers = val
+		}
+		if val, ok := advResults["laps"]; ok {
+			results.Advanced.LAPS = val
+		}
+		if val, ok := advResults["gpos"]; ok {
+			results.Advanced.GPOs = val
+		}
+		if val, ok := advResults["sessions"]; ok {
+			results.Advanced.Sessions = val
+		}
+		if val, ok := advResults["acl_analysis"]; ok {
+			results.Advanced.ACLAnalysis = val
 		}
 	}
 

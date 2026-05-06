@@ -56,6 +56,12 @@ type AdvancedResults struct {
 	Delegation     interface{}            `json:"delegation,omitempty"`
 	RBCD           interface{}            `json:"rbcd,omitempty"`
 	PKINIT         interface{}            `json:"pkinit,omitempty"`
+	Trusts         interface{}            `json:"trusts,omitempty"`
+	DNSTransfers   interface{}            `json:"dns_transfers,omitempty"`
+	LAPS           interface{}            `json:"laps,omitempty"`
+	GPOs           interface{}            `json:"gpos,omitempty"`
+	Sessions       interface{}            `json:"sessions,omitempty"`
+	ACLAnalysis    interface{}            `json:"acl_analysis,omitempty"`
 }
 
 func WriteJSON(path string, results Results) error {

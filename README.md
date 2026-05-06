@@ -12,6 +12,11 @@ A production-ready, single-binary Go tool for identifying AS-REP and Kerberoasta
 - **Real Kerberos Protocol**: Multi-etype AS-REP roasting (AES256, AES128, RC4) and authenticated Kerberoasting using real Kerberos protocol interactions.
 - **Secure LDAP**: Full TLS support with LDAPS (636), STARTTLS (389), certificate validation, and automatic fallback.
 - **Protocol Discovery**: Rapid service checking for Kerberos (88), LDAP (389/636), SMB (445), WinRM (5985/5986), RDP (3389), Global Catalog (3268/3269), and more.
+- **Trust & DNS Analysis**: Domain trust enumeration plus DNS zone transfer checks for AD-connected nameservers.
+- **LAPS / gMSA Enumeration**: Detect LAPS-managed passwords and managed service accounts in Active Directory.
+- **GPO Hardening Analysis**: Enumerate Group Policy containers and flag insecure or non-default policy settings.
+- **Session Intelligence**: Infer active account sessions from LDAP logon timestamps and logon counts.
+- **ACL / Privilege Analysis**: Identify admin-marked and privileged objects beyond basic RBCD checks.
 - **Administrative "Pwned" Detection**: Real-time detection of administrative privileges by attempting access to ADMIN$ and C$ shares.
 - **Credential Harvesting**: Automated scanning of SYSVOL for Group Policy Preferences (GPP) XML files, deep LDAP attribute mining, and decryption of `cpassword` attributes.
 - **Advanced Attack Vectors**: Built-in support for analyzing RBCD, S4U delegation paths, DCSync replication rights, and PKINIT/AD CS templates.
@@ -26,78 +31,60 @@ go build -o kerb-sleuth ./cmd/kerb-sleuth/
 
 ## Quick Start
 
-### Basic Enumeration
+### Passive Mode
+Use the passive mode for enumeration and discovery only.
+
 ```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password -d CORP
+./kerb-sleuth -t 10.129.29.229 -u wallace.everette@logging.htb -p 'Welcome2026@' --mode passive
 ```
 
-### Secure LDAPS with Certificate Validation
+### Aggressive Mode
+Use aggressive mode for full AD attack surface discovery and offensive analysis.
+
 ```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password -d CORP \
-  --ldaps --cafile /path/to/ca.pem
+./kerb-sleuth -t 10.129.29.229 -u wallace.everette@logging.htb -p 'Welcome2026@' --mode aggressive
 ```
 
-### Real Kerberos Protocol + Hash Cracking
-```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password -d CORP \
-  --real --crack -w /usr/share/wordlists/rockyou.txt --yes
-```
+### Optional Output
+Save additional formats if you want:
 
-### Full Advanced Analysis
 ```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password -d CORP \
-  -A --yes
+./kerb-sleuth -t 10.129.29.229 -u wallace.everette@logging.htb -p 'Welcome2026@' --mode aggressive -o results.json --csv results.csv --siem
 ```
 
 ## Command-Line Flags
 
-### Connection Options
+### Primary Options
 | Flag | Description |
 |------|-------------|
 | `-t <target>` | Target IP or hostname (required) |
-| `-u <user>` | Username for authentication (supports DOMAIN\user, user@domain.com, or DN) |
+| `-u <user>` | Username for authentication (supports `DOMAIN\user`, `user@domain.com`) |
 | `-p <pass>` | Password for authentication |
-| `-d <domain>` | Domain name (e.g., CORP.LOCAL) |
-
-### TLS/Security Options
-| Flag | Description |
-|------|-------------|
-| `--ldaps` | Use LDAPS on port 636 (implicit TLS) |
-| `--starttls` | Use STARTTLS on port 389 (upgrade to TLS) |
-| `--insecure` | Skip TLS certificate verification (use with caution) |
-| `--cafile <path>` | Path to PEM CA bundle for TLS certificate validation |
-| `--fallback-tls` | Automatically try plain LDAP → STARTTLS → LDAPS on connection failure |
-
-### Kerberos Options
-| Flag | Description |
-|------|-------------|
-| `--kdc <host>` | Explicit Kerberos KDC hostname or IP (overrides auto-detection) |
-| `--real` | Perform real Kerberos protocol interactions (AS-REP, TGS-REQ) |
-| `--crack` | Extract and attempt to crack hashes (requires `--yes`) |
-| `-w <wordlist>` | Path to wordlist for hash cracking |
-
-### Analysis Modules
-| Flag | Description |
-|------|-------------|
-| `-A` | Run all advanced analysis modules (SMB, GPP, RBCD, S4U, DCSync, PKINIT) |
-| `--rbcd` | Specifically run RBCD (Resource-Based Constrained Delegation) analysis |
-| `--s4u` | Specifically run S4U (Service for User) delegation analysis |
-| `--dcsync` | Specifically run DCSync replication rights analysis |
-| `--pkinit` | Specifically run PKINIT/AD CS certificate template analysis |
-| `--audit` | Run in audit mode (safer, fewer packets) |
+| `-d <domain>` | Domain name (auto-detected if omitted) |
+| `--mode <passive|aggressive>` | Scan mode; passive is enumeration-only, aggressive runs full analysis |
 
 ### Output Options
 | Flag | Description |
 |------|-------------|
 | `-o <file>` | JSON output file (default: `results.json`) |
 | `--csv <file>` | Optional CSV output file |
-| `--json` | Output JSON to stdout only (no file) |
-| `--siem` | Generate SIEM detection rules (Sigma format) |
+| `--siem` | Generate SIEM detection rules |
 
-### Authorization
+### Legacy / Advanced Options
+These are available for power users, but not required for normal use.
+
 | Flag | Description |
 |------|-------------|
-| `--yes` | Confirm authorization for active attacks (required for `--real`, `--crack`, `-A`) |
+| `--ldaps` | Use LDAPS on port 636 |
+| `--starttls` | Use STARTTLS on port 389 |
+| `--insecure` | Skip TLS certificate verification |
+| `--cafile <path>` | CA certificate bundle for TLS validation |
+| `--kdc <host>` | Explicit Kerberos KDC hostname or IP |
+| `--fallback-tls` | Try plain LDAP → STARTTLS → LDAPS automatically |
+| `-w <wordlist>` | Wordlist for hash cracking (advanced) |
+| `--audit` | Audit mode with reduced offensive activity |
+
+## Features in Detail
 
 ## Features in Detail
 

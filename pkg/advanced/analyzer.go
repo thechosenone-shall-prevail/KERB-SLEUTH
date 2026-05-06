@@ -403,6 +403,12 @@ func (aa *AdvancedAnalyzer) RunFullAnalysis() error {
 		fn   func() error
 	}{
 		{"smb", aa.RunSMBAnalysis},
+		{"trust", aa.RunTrustAnalysis},
+		{"dns", aa.RunDNSAnalysis},
+		{"laps", aa.RunLAPSAnalysis},
+		{"gpo", aa.RunGPOAnalysis},
+		{"sessions", aa.RunSessionAnalysis},
+		{"acl", aa.RunACLAnalysis},
 		{"rbcd", aa.RunRBCDAnalysis},
 		{"s4u", aa.RunS4UAnalysis},
 		{"pkinit", aa.RunPKINITAnalysis},
