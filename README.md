@@ -1,440 +1,408 @@
-# Active Directory Kerberos Security Scanner
+# Cold Relay
+
+**Identity paths, proven cold.**
 
 ![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH) ![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH) ![Go version](https://img.shields.io/github/go-mod/go-version/thechosenone-shall-prevail/KERB-SLEUTH) ![Platform](https://img.shields.io/badge/platform-windows-blue)
 
-🩸 BLEEDING WINDOWS AUTHENTICATION 🩸
+Cold Relay is a single-binary Active Directory security assessment tool for authorized operators. It collects Windows authentication evidence across LDAP, Kerberos, SMB, DNS, GPO, delegation, certificate services, sessions, and privilege metadata, then turns that evidence into deterministic findings and an offline attack graph.
 
-A production-ready, single-binary Go tool for identifying AS-REP and Kerberoastable targets in Active Directory environments, combined with deep reconnaissance, automated protocol discovery, and real Kerberos protocol interactions.
+It does not claim fake certainty. Findings are marked as `validated`, `likely`, `theoretical`, `blocked`, or `insufficient_visibility`, with evidence, blockers, and next actions attached to the output.
 
-## Core Capabilities
+Windows authentication does not fail loudly. It leaves cold traces: stale privilege, readable shares, exposed SPNs, delegated trust, weak certificate paths, forgotten sessions, and directory metadata that quietly explains how a domain can be moved through.
 
-- **Identity Reconnaissance**: Automated enumeration of all user objects, including detailed attributes such as descriptions, group memberships (MemberOf), account security flags (UAC), and lastLogonTimestamp.
-- **Real Kerberos Protocol**: Multi-etype AS-REP roasting (AES256, AES128, RC4) and authenticated Kerberoasting using real Kerberos protocol interactions.
-- **Secure LDAP**: Full TLS support with LDAPS (636), STARTTLS (389), certificate validation, and automatic fallback.
-- **Protocol Discovery**: Rapid service checking for Kerberos (88), LDAP (389/636), SMB (445), WinRM (5985/5986), RDP (3389), Global Catalog (3268/3269), and more.
-- **Trust & DNS Analysis**: Domain trust enumeration plus DNS zone transfer checks for AD-connected nameservers.
-- **LAPS / gMSA Enumeration**: Detect LAPS-managed passwords and managed service accounts in Active Directory.
-- **GPO Hardening Analysis**: Enumerate Group Policy containers and flag insecure or non-default policy settings.
-- **Session Intelligence**: Infer active account sessions from LDAP logon timestamps and logon counts.
-- **ACL / Privilege Analysis**: Identify admin-marked and privileged objects beyond basic RBCD checks.
-- **Administrative "Pwned" Detection**: Real-time detection of administrative privileges by attempting access to ADMIN$ and C$ shares.
-- **Credential Harvesting**: Automated scanning of SYSVOL for Group Policy Preferences (GPP) XML files, deep LDAP attribute mining, and decryption of `cpassword` attributes.
-- **Advanced Attack Vectors**: Built-in support for analyzing RBCD, S4U delegation paths, DCSync replication rights, and PKINIT/AD CS templates.
+Cold Relay records those traces.
+
+## What It Does
+
+- Enumerates Active Directory users, groups, SPNs, account flags, timestamps, descriptions, and operational metadata.
+- Discovers exposed AD-relevant services such as Kerberos, LDAP, SMB, WinRM, RDP, Global Catalog, ADWS, and kpasswd.
+- Supports LDAP, LDAPS, STARTTLS, CA validation, insecure TLS mode, and TLS fallback.
+- Identifies AS-REP and Kerberoast candidates and can perform real Kerberos hash extraction in aggressive mode.
+- Enumerates SMB shares, checks administrative share access, hunts sensitive files, scans SYSVOL, and decrypts GPP `cpassword` values.
+- Analyzes trusts, DNS zone transfer exposure, LAPS and gMSA objects, GPO containers, session indicators, privileged objects, RBCD, S4U, DCSync-class rights, and PKINIT/AD CS templates.
+- Builds deterministic candidate metadata with validation status, evidence, blockers, and next actions.
+- Builds an offline `attack_graph` connecting principals, groups, SPNs, services, shares, files, secrets, sessions, ACL objects, trusts, delegation edges, certificate templates, and replication-right findings.
+- Writes JSON, CSV, and optional Sigma detection rules.
+
+## Current Binary
+
+The repository still builds the binary as `kerb-sleuth`:
+
+```bash
+go build -o kerb-sleuth ./cmd/kerb-sleuth
+```
+
+The product direction and README use the Cold Relay brand while the current command remains `kerb-sleuth`.
 
 ## Installation
 
 ```bash
 git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
 cd KERB-SLEUTH
-go build -o kerb-sleuth ./cmd/kerb-sleuth/
+go build -o kerb-sleuth ./cmd/kerb-sleuth
 ```
 
 ## Quick Start
 
-### Passive Mode
-Use the passive mode for enumeration and discovery only.
+Passive mode performs protocol discovery, LDAP connection, user enumeration, candidate selection, deterministic validation labeling, and report generation.
 
 ```bash
-./kerb-sleuth -t 10.129.29.229 -u wallace.everette@logging.htb -p 'Welcome2026@' --mode passive
+./kerb-sleuth -t 10.129.29.229 \
+  -u wallace.everette@logging.htb \
+  -p 'Welcome2026@' \
+  --mode passive
 ```
 
-### Aggressive Mode
-Use aggressive mode for full AD attack surface discovery and offensive analysis.
+Aggressive mode adds real Kerberos interactions and advanced AD/SMB analysis.
 
 ```bash
-./kerb-sleuth -t 10.129.29.229 -u wallace.everette@logging.htb -p 'Welcome2026@' --mode aggressive
+./kerb-sleuth -t 10.129.29.229 \
+  -u wallace.everette@logging.htb \
+  -p 'Welcome2026@' \
+  --mode aggressive
 ```
 
-### Optional Output
-Save additional formats if you want:
+Write JSON, CSV, and Sigma rules:
 
 ```bash
-./kerb-sleuth -t 10.129.29.229 -u wallace.everette@logging.htb -p 'Welcome2026@' --mode aggressive -o results.json --csv results.csv --siem
+./kerb-sleuth -t 10.129.29.229 \
+  -u wallace.everette@logging.htb \
+  -p 'Welcome2026@' \
+  --mode aggressive \
+  -o results.json \
+  --csv candidates.csv \
+  --siem
 ```
 
-## Command-Line Flags
+## Command-Line Options
 
-### Primary Options
-| Flag | Description |
-|------|-------------|
-| `-t <target>` | Target IP or hostname (required) |
-| `-u <user>` | Username for authentication (supports `DOMAIN\user`, `user@domain.com`) |
-| `-p <pass>` | Password for authentication |
-| `-d <domain>` | Domain name (auto-detected if omitted) |
-| `--mode <passive|aggressive>` | Scan mode; passive is enumeration-only, aggressive runs full analysis |
-
-### Output Options
-| Flag | Description |
-|------|-------------|
-| `-o <file>` | JSON output file (default: `results.json`) |
-| `--csv <file>` | Optional CSV output file |
-| `--siem` | Generate SIEM detection rules |
-
-### Legacy / Advanced Options
-These are available for power users, but not required for normal use.
+### Primary
 
 | Flag | Description |
 |------|-------------|
-| `--ldaps` | Use LDAPS on port 636 |
-| `--starttls` | Use STARTTLS on port 389 |
-| `--insecure` | Skip TLS certificate verification |
-| `--cafile <path>` | CA certificate bundle for TLS validation |
-| `--kdc <host>` | Explicit Kerberos KDC hostname or IP |
-| `--fallback-tls` | Try plain LDAP → STARTTLS → LDAPS automatically |
-| `-w <wordlist>` | Wordlist for hash cracking (advanced) |
-| `--audit` | Audit mode with reduced offensive activity |
+| `-t <target>` | Target IP or hostname. Required unless supplied positionally. |
+| `-u <user>` | Username for authentication. Supports `DOMAIN\user` and `user@domain`. |
+| `-p <pass>` | Password for authentication. |
+| `-d <domain>` | Domain name. If omitted, Cold Relay attempts RootDSE-based detection. |
+| `--mode <passive|aggressive>` | `passive` runs enumeration and reasoning. `aggressive` runs full analysis. |
 
-## Features in Detail
+### Output
 
-## Features in Detail
+| Flag | Description |
+|------|-------------|
+| `-o <file>` | JSON output path. Default: `results.json`. |
+| `--csv <file>` | Optional CSV candidate export. |
+| `--json` | Print JSON to stdout only. |
+| `--siem` | Generate Sigma detection rules. |
 
-### 🔐 Secure LDAP Connections
+### Connection And Kerberos
 
-KERB-SLEUTH supports multiple LDAP connection modes:
+| Flag | Description |
+|------|-------------|
+| `--ldaps` | Use LDAPS on port 636. |
+| `--starttls` | Use STARTTLS on LDAP port 389. |
+| `--insecure` | Skip TLS certificate verification. |
+| `--cafile <path>` | PEM CA bundle for TLS validation. |
+| `--kdc <host>` | Explicit Kerberos KDC hostname or IP. |
+| `--fallback-tls` | If plain LDAP fails, try STARTTLS, then LDAPS. |
 
-**LDAPS (Port 636):**
-```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password --ldaps
-```
+### Advanced
 
-**STARTTLS (Port 389):**
-```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password --starttls
-```
+| Flag | Description |
+|------|-------------|
+| `-w <wordlist>` | In aggressive mode, extract and attempt cracking candidate hashes with the supplied wordlist. |
+| `--audit` | Pass audit mode into advanced analyzers where supported. |
 
-**Certificate Validation:**
-```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password \
-  --ldaps --cafile /etc/ssl/certs/corp-ca.pem
-```
+## Validation Language
 
-**Automatic Fallback:**
-```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password --fallback-tls
-# Tries: Plain LDAP → STARTTLS → LDAPS
-```
+Cold Relay uses evidence states instead of percentages:
 
-### 🎯 KDC Resolution
+| Status | Meaning |
+|--------|---------|
+| `validated` | The condition was directly observed or a protocol action succeeded. |
+| `likely` | Strong evidence exists, but at least one real-world precondition is not proven. |
+| `theoretical` | Directory or configuration data suggests a path, but control or reachability is not proven. |
+| `blocked` | The tool attempted a check and could not complete it, or required visibility was denied. |
+| `insufficient_visibility` | The collected data is not enough to make a responsible call. |
 
-KERB-SLEUTH automatically resolves the Kerberos KDC using multiple methods:
+This is deliberate. LDAP visibility is not exploitability. Delegation is not a reachable chain. SPN presence is not cracked credential value. Session metadata is not host control. Cold Relay keeps that distinction visible in the output.
 
-1. **Explicit Override:** `--kdc kdc.corp.local`
-2. **RootDSE Attribute:** `dnsHostName` from LDAP RootDSE
-3. **LDAP Host:** Uses the LDAP connection target
-4. **DNS SRV Lookup:** `_kerberos._tcp.dc._msdcs.<realm>`
-5. **DNS SRV Fallback:** `_kerberos._tcp.<realm>`
+## Output Model
 
-### 🔑 Real Kerberos Protocol
+The JSON report uses schema version `2.0` and is designed to be read offline after collection.
 
-**Multi-Etype AS-REP Roasting:**
-- Supports AES256-CTS-HMAC-SHA1-96, AES128-CTS-HMAC-SHA1-96, and RC4-HMAC
-- Automatically formats hashes for hashcat mode 18200
+High-level structure:
 
-**Authenticated Kerberoasting:**
-- Uses bind credentials to obtain TGS tickets
-- Supports AES and RC4 encryption types
-- Formats hashes for hashcat mode 13100 (RC4) and 19600/19700 (AES)
-
-**Rate Limiting:**
-- 120ms delay between hash extractions to avoid detection
-
-### 📊 Protocol Discovery
-
-Automatically scans for active services:
-- **88** - Kerberos
-- **135** - RPC
-- **389** - LDAP
-- **445** - SMB
-- **464** - kpasswd
-- **636** - LDAPS
-- **3268** - Global Catalog
-- **3269** - Global Catalog SSL
-- **3389** - RDP
-- **5985** - WinRM
-- **5986** - WinRM SSL
-- **9389** - Active Directory Web Services
-
-### 🕵️ Advanced Analysis Modules
-
-**RBCD (Resource-Based Constrained Delegation):**
-- Enumerates `msDS-AllowedToActOnBehalfOfOtherIdentity` attributes
-- Identifies exploitable delegation paths
-- Calculates risk scores and provides exploitation guidance
-
-**S4U (Service for User) Delegation:**
-- Detects unconstrained and constrained delegation
-- Analyzes S4U2Self and S4U2Proxy configurations
-- Identifies high-privilege accounts with delegation rights
-
-**DCSync:**
-- Scans domain security descriptor for replication extended rights
-- Detects `DS-Replication-Get-Changes`, `DS-Replication-Get-Changes-All`, and `DS-Replication-Get-Changes-In-Filtered-Set`
-- No full-tree LDAP queries (efficient domain base search only)
-
-**PKINIT/AD CS:**
-- Enumerates certificate templates
-- Identifies autoenrollment and SmartCardLogon configurations
-- Detects excessive enrollment rights
-
-### 🎯 Risk Insights & Attack Paths
-
-KERB-SLEUTH automatically generates tactical attack chains:
-
-```
-[CRITICAL] High Value Target: Administrator (Admin Privileges Detected)
-[CRITICAL] LOOT FOUND in LDAP Description of svc_backup (Found keyword: 'password')
-[HIGH] READ access to juicy share: \\dc\backup (Found 12 sensitive files)
---- Tactical Attack Chain ---
-Step 1: Extract credentials from LDAP 'Description' fields.
-Step 2: Use harvested credentials to test against SMB, WinRM, and RDP.
-Step 3: Target identified Domain Admins for full domain compromise.
-```
-
-### 🔓 Credential Harvesting
-
-**LDAP Attribute Mining:**
-- Scans `Description`, `Info`, `Comment`, `PhysicalDeliveryOfficeName`, `PostOfficeBox`
-- Detects keywords: `password`, `pass:`, `pwd=`, `secret`, `creds`, `token`
-
-**GPP Password Decryption:**
-- Scans SYSVOL for `Groups.xml`, `Services.xml`, `Scheduledtasks.xml`, `DataSources.xml`
-- Automatically decrypts `cpassword` attributes
-
-**SMB Share Enumeration:**
-- Identifies "juicy" shares: `logs`, `backup`, `it`, `hr`, `users`, `shared`
-- Deep file hunt for sensitive files: `.config`, `.xml`, `.ini`, `.txt`, `.log`, `.bak`
-
-### 📤 Output Formats
-
-**JSON (Schema Version 2.0):**
 ```json
 {
   "schema_version": "2.0",
   "domain": {
-    "name": "CORP.LOCAL",
-    "dn": "DC=corp,DC=local",
+    "name": "LOGGING.HTB",
+    "dn": "DC=logging,DC=htb",
     "functional_level": "2016",
     "os_version": "Windows Server 2019"
   },
   "summary": {
-    "total_users": 1523,
-    "asrep_candidates": 12,
-    "kerberoast_candidates": 34,
-    "high_risk_objects": 46
+    "total_users": 12,
+    "asrep_candidates": 0,
+    "kerberoast_candidates": 0,
+    "recon_candidates": 1,
+    "hvt_candidates": 2,
+    "loot_candidates": 0,
+    "validation_status": {
+      "validated": 3,
+      "likely": 1,
+      "theoretical": 2
+    }
   },
-  "candidates": [...],
-  "risk_insights": [...],
-  "advanced": {
-    "shares": ["ADMIN$", "C$", "SYSVOL", "NETLOGON"],
-    "pwned": true,
-    "dcsync": {...},
-    "delegation": {...},
-    "rbcd": {...},
-    "pkinit": [...]
-  }
+  "candidates": [
+    {
+      "SamAccountName": "Administrator",
+      "Type": "HVT",
+      "Score": 90,
+      "validation": "validated",
+      "evidence": [
+        "LDAP group membership marks this principal as privileged."
+      ],
+      "blockers": [
+        "No current credential, session, or control edge proves access to this principal."
+      ],
+      "next_actions": [
+        "Look for reachable credentials, sessions, ACL writes, or delegation edges into this principal."
+      ]
+    }
+  ],
+  "attack_graph": {
+    "nodes": [],
+    "edges": [],
+    "attack_paths": [],
+    "summary": {}
+  },
+  "advanced": {}
 }
 ```
 
-**CSV Export:**
+## Attack Graph
+
+Cold Relay builds a graph from collected evidence. The graph is not an AI guess and not a percentage model. It is a deterministic representation of observed objects and relationships.
+
+Graph nodes include:
+
+- `principal`
+- `group`
+- `target`
+- `domain`
+- `service`
+- `spn`
+- `share`
+- `file`
+- `secret`
+- `directory_object`
+- `trust`
+- `gpo`
+- `certificate_template`
+- `delegation_account`
+- `delegation_target`
+- `replication_principal`
+
+Graph edges include:
+
+- `authenticated_to`
+- `exposes_service`
+- `member_of`
+- `owns_spn`
+- `exposes_share`
+- `contains_sensitive_file`
+- `exposes_secret`
+- `likely_active_session`
+- `marked_privileged`
+- `has_trust`
+- `tested_axfr`
+- `contains_managed_credential`
+- `has_gpo`
+- `can_act_on_behalf`
+- `delegates_to_spn`
+- `can_enroll_certificate`
+- `has_replication_rights`
+
+Attack paths are generated from these edges with validation status, evidence, and blockers attached.
+
+## Modes
+
+### Passive
+
+Passive mode is the default mode for enumeration and offline reasoning.
+
+It performs:
+
+- Protocol discovery.
+- LDAP bind and domain detection.
+- Paged user enumeration.
+- AS-REP and Kerberoast candidate identification.
+- Candidate scoring.
+- Validation labeling.
+- Attack graph construction from collected evidence.
+- JSON/CSV/SIEM output where requested.
+
+### Aggressive
+
+Aggressive mode runs the full assessment surface.
+
+It adds:
+
+- Real Kerberos AS-REP and TGS extraction attempts.
+- SMB share enumeration.
+- ADMIN$ and C$ access checks.
+- SYSVOL GPP scanning and `cpassword` decryption.
+- Sensitive file hunting on interesting shares.
+- Trust, DNS, LAPS/gMSA, GPO, session, ACL, RBCD, S4U, PKINIT, and DCSync analysis.
+- Optional cracking workflow when `-w` is supplied.
+
+## Secure LDAP And KDC Resolution
+
+Cold Relay supports:
+
+- Plain LDAP on 389.
+- LDAPS on 636.
+- STARTTLS on 389.
+- CA bundle validation with `--cafile`.
+- Self-signed or lab certificate bypass with `--insecure`.
+- Connection fallback with `--fallback-tls`.
+
+KDC resolution order:
+
+1. Explicit `--kdc`.
+2. RootDSE `dnsHostName`.
+3. LDAP connection host.
+4. DNS SRV lookup for `_kerberos._tcp.dc._msdcs.<realm>`.
+5. DNS SRV lookup for `_kerberos._tcp.<realm>`.
+
+## Advanced Analysis Surface
+
+### Identity And Privilege
+
+- User enumeration.
+- Group membership.
+- Admin-marked objects.
+- Privileged group membership.
+- Inactive account indicators.
+- Service account indicators.
+- LDAP attribute mining for secret-like material.
+
+### Kerberos
+
+- AS-REP candidate detection.
+- Kerberoast candidate detection.
+- Multi-etype AS-REP extraction in aggressive mode.
+- Authenticated Kerberoasting in aggressive mode.
+- KDC resolution and TCP Kerberos framing.
+
+### SMB And File Evidence
+
+- Share enumeration.
+- Administrative share access checks.
+- SYSVOL GPP XML scanning.
+- GPP `cpassword` decryption.
+- Sensitive file discovery on interesting shares.
+- Secret-like content extraction from readable files.
+
+### Delegation And Replication
+
+- RBCD target enumeration.
+- S4U delegation analysis.
+- DCSync-class extended-right detection where readable.
+- Exploitation-path reporting with validation caveats.
+
+### Infrastructure
+
+- Protocol discovery.
+- Domain trust enumeration.
+- DNS zone transfer checks.
+- LAPS and gMSA enumeration.
+- Group Policy container analysis.
+- Session intelligence from LDAP timestamps and logon counts.
+- PKINIT and AD CS certificate template analysis.
+
+## CSV Output
+
+CSV output includes:
+
+- `SamAccountName`
+- `Type`
+- `Score`
+- `Severity`
+- `Validation`
+- `Reasons`
+- `Evidence`
+- `Blockers`
+- `NextActions`
+- `SPNs`
+- `ExportHashPath`
+
+## SIEM Output
+
+`--siem` writes Sigma-style detections for common Kerberos attack signals such as AS-REP roasting and Kerberoasting.
+
 ```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password --csv candidates.csv
+./kerb-sleuth -t dc01.corp.local -u alice@corp.local -p 'Password123!' --mode aggressive --siem
 ```
 
-**SIEM Rules (Sigma):**
+## Build And Test
+
 ```bash
-./kerb-sleuth -t dc.corp.local -u admin -p password --siem
-# Generates siem_rules.yaml
+go test ./...
+go vet ./...
+go build -o kerb-sleuth ./cmd/kerb-sleuth
 ```
 
-## Output Format
+## Docker
 
-All findings are consolidated into a single `results.json` file (schema version 2.0), including:
-- **Domain Metadata**: OS Version, Functional Level, Base DN, and DNS hostname.
-- **Summary Statistics**: Total users, AS-REP candidates, Kerberoastable accounts, high-risk objects.
-- **Candidates**: Prioritized list of attack targets with scores, reasons, and exploitation paths.
-- **Risk Insights**: Automated tactical attack chains and exploitation guidance.
-- **Advanced Findings**: SMB shares, GPP credentials, DCSync rights, delegation paths, RBCD configurations, and PKINIT templates.
-
-## Example Workflow
-
-### 1. Initial Reconnaissance
 ```bash
-# Basic enumeration with protocol discovery
-./kerb-sleuth -t 10.10.10.100 -u corp\\admin -p P@ssw0rd -d CORP
+docker build -t cold-relay .
+docker run --rm -it cold-relay --help
 ```
 
-### 2. Secure Connection with Certificate Validation
-```bash
-# Use LDAPS with CA certificate
-./kerb-sleuth -t dc.corp.local -u admin@corp.local -p P@ssw0rd \
-  --ldaps --cafile /etc/ssl/certs/corp-ca.pem
-```
+## Security And Authorization
 
-### 3. Real Kerberos Attacks
-```bash
-# Extract real AS-REP and Kerberoast hashes
-./kerb-sleuth -t dc.corp.local -u admin -p P@ssw0rd -d CORP \
-  --real --yes
-```
+Cold Relay is for authorized security work only.
 
-### 4. Hash Cracking
-```bash
-# Extract and crack hashes with wordlist
-./kerb-sleuth -t dc.corp.local -u admin -p P@ssw0rd -d CORP \
-  --real --crack -w /usr/share/wordlists/rockyou.txt --yes
-```
+Protocol discovery, LDAP enumeration, Kerberos requests, SMB share access, SYSVOL traversal, and file reads can generate logs and trigger controls. Run it only in environments where you have permission to test.
 
-### 5. Full Advanced Analysis
-```bash
-# Run all modules: SMB, GPP, RBCD, S4U, DCSync, PKINIT
-./kerb-sleuth -t dc.corp.local -u admin -p P@ssw0rd -d CORP \
-  -A --yes -o full_analysis.json
-```
+Detection examples:
 
-### 6. Specific Module Analysis
-```bash
-# Only run DCSync and RBCD analysis
-./kerb-sleuth -t dc.corp.local -u admin -p P@ssw0rd -d CORP \
-  --dcsync --rbcd --yes
-```
+- Kerberos AS-REQ and TGS-REQ traffic can generate Windows Security events such as 4768 and 4769.
+- SMB share access can generate share access events such as 5140.
+- LDAP enumeration can be visible to directory monitoring and SIEM tooling.
+- DNS AXFR attempts may be logged by DNS infrastructure.
 
-### 7. Connection Troubleshooting
-```bash
-# Automatic TLS fallback if connection fails
-./kerb-sleuth -t dc.corp.local -u admin -p P@ssw0rd -d CORP \
-  --fallback-tls --insecure
-```
+Use lab environments first. Understand what each mode does before running it in a production network.
 
-## Architecture
+## Philosophy
 
-### Key Components
+Cold Relay is built around operator trust.
 
-**pkg/krb/ldap.go:**
-- LDAP connection management with TLS support
-- Paged user enumeration (handles >1000 users)
-- `SearchSubtreePaged` for efficient large-scale queries
-- Certificate validation and CA bundle support
+It should tell you:
 
-**pkg/krb/kdc.go:**
-- Intelligent KDC resolution with multiple fallback methods
-- SAM account name extraction from various bind formats
+- What was observed.
+- Why it matters.
+- What is proven.
+- What is only suggested.
+- What blocked validation.
+- What an operator should check next.
 
-**pkg/krb/kerberos_integration.go:**
-- Real Kerberos protocol implementation
-- Multi-etype AS-REP roasting (AES256, AES128, RC4)
-- Authenticated Kerberoasting with bind credentials
-- AES-aware hash formatting for hashcat
-
-**pkg/advanced/:**
-- `analyzer.go` - Orchestrates all advanced modules
-- `dcsync.go` - DCSync replication rights analysis
-- `rbcd.go` - Resource-Based Constrained Delegation
-- `s4u.go` - Service for User delegation analysis
-- `pkinit.go` - PKINIT/AD CS certificate template enumeration
-- `smb.go` - SMB share enumeration and GPP scanning
-
-**pkg/output/writer.go:**
-- JSON output with schema versioning
-- CSV export for spreadsheet analysis
-- Sigma rule generation for SIEM integration
-
-## Security Considerations
-
-### Authorization
-Always obtain explicit written authorization before running KERB-SLEUTH against any Active Directory environment. Unauthorized use is illegal and unethical.
-
-### Detection Risk
-- **Protocol Discovery**: Port scanning may trigger IDS/IPS alerts
-- **Real Kerberos**: AS-REP and TGS-REQ traffic is logged (Event IDs 4768, 4769)
-- **SMB Enumeration**: Share access attempts are logged (Event ID 5140)
-- **LDAP Queries**: Large-scale enumeration may be detected by SIEM
-
-### Mitigation
-- Use `--audit` mode for safer reconnaissance
-- Enable rate limiting (built-in 120ms delay for hash extraction)
-- Test in isolated lab environments first
-- Monitor your own logs to understand detection signatures
-
-## Troubleshooting
-
-### Connection Issues
-
-**Problem:** `LDAP connection failed: dial tcp: i/o timeout`
-```bash
-# Solution: Try explicit port or fallback TLS
-./kerb-sleuth -t dc.corp.local:389 -u admin -p pass --fallback-tls
-```
-
-**Problem:** `TLS handshake failed: x509: certificate signed by unknown authority`
-```bash
-# Solution: Use --insecure or provide CA certificate
-./kerb-sleuth -t dc.corp.local -u admin -p pass --ldaps --insecure
-# OR
-./kerb-sleuth -t dc.corp.local -u admin -p pass --ldaps --cafile ca.pem
-```
-
-**Problem:** `LDAP bind failed: Invalid Credentials`
-```bash
-# Solution: Try different bind formats
-./kerb-sleuth -t dc.corp.local -u "CORP\\admin" -p pass
-./kerb-sleuth -t dc.corp.local -u "admin@corp.local" -p pass
-./kerb-sleuth -t dc.corp.local -u "CN=admin,CN=Users,DC=corp,DC=local" -p pass
-```
-
-### Kerberos Issues
-
-**Problem:** `KDC resolution failed`
-```bash
-# Solution: Explicitly specify KDC
-./kerb-sleuth -t dc.corp.local -u admin -p pass --kdc kdc.corp.local
-```
-
-**Problem:** `AS-REP extraction failed: KDC returned error: PREAUTH_REQUIRED`
-```bash
-# This is expected - the account requires pre-authentication (not vulnerable)
-```
-
-**Problem:** `Kerberoast extraction failed: GetServiceTicket failed`
-```bash
-# Solution: Ensure you're using authenticated bind credentials
-./kerb-sleuth -t dc.corp.local -u admin -p pass --real --yes
-```
-
-## Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Roadmap
-
-- [ ] Structured JSON logging
-- [ ] YAML configuration file support
-- [ ] Additional hash cracking integrations (John the Ripper)
-- [ ] BloodHound integration for attack path visualization
-- [ ] Kerberos ticket manipulation (Silver/Golden tickets)
-- [ ] Automated exploitation workflows
-- [ ] Web-based reporting dashboard
+It should not pretend a directory relationship is a compromise. It should not dress a heuristic as mathematics. Active Directory attack paths are stateful, environmental, and conditional. Cold Relay keeps those conditions visible.
 
 ## Credits
 
 Built with:
-- [go-ldap/ldap](https://github.com/go-ldap/ldap) - LDAP client library
-- [jcmturner/gokrb5](https://github.com/jcmturner/gokrb5) - Kerberos protocol implementation
-- [hirochachacha/go-smb2](https://github.com/hirochachacha/go-smb2) - SMB2/3 client library
 
-Inspired by:
-- [Rubeus](https://github.com/GhostPack/Rubeus) - C# Kerberos abuse toolkit
-- [Impacket](https://github.com/SecureAuthCorp/impacket) - Python network protocol library
-- [BloodHound](https://github.com/BloodHoundAD/BloodHound) - AD attack path analysis
+- [go-ldap/ldap](https://github.com/go-ldap/ldap)
+- [jcmturner/gokrb5](https://github.com/jcmturner/gokrb5)
+- [hirochachacha/go-smb2](https://github.com/hirochachacha/go-smb2)
+- [miekg/dns](https://github.com/miekg/dns)
 
-## Legal Disclaimer
-
-This tool is designed for authorized security assessments only. Unauthorized use is illegal.
+Inspired by the practical lessons of mature AD assessment tooling and by the operator workflow of moving from evidence to validation, not from guesses to noise.
 
 ## License
 
-Standard [MIT License](LICENSE).
+MIT. See [LICENSE](LICENSE).
