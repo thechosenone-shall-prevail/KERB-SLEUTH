@@ -287,7 +287,7 @@ func decodeUTF16(data []byte) string {
 	if len(data) < 2 {
 		return string(data)
 	}
-	
+
 	var u16 []uint16
 	// Detect endianness and remove BOM
 	isBigEndian := false
@@ -441,7 +441,7 @@ func (sa *SMBAnalyzer) parseGPPXML(fs *smb2.Share, path string) ([]GPPSimpleResu
 	for i := 0; i < len(users) && i < len(passes); i++ {
 		username := string(users[i][1])
 		cpass := string(passes[i][1])
-		
+
 		password, err := decryptGPP(cpass)
 		if err == nil {
 			results = append(results, GPPSimpleResult{
@@ -481,7 +481,7 @@ func decryptGPP(cpassword string) (string, error) {
 
 	iv := make([]byte, 16) // Zero IV for GPP
 	mode := cipher.NewCBCDecrypter(block, iv)
-	
+
 	decrypted := make([]byte, len(data))
 	mode.CryptBlocks(decrypted, data)
 

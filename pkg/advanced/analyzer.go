@@ -105,6 +105,10 @@ func (aa *AdvancedAnalyzer) RunRBCDAnalysis() error {
 	// Generate report
 	report := analyzer.GenerateExploitationReport(results)
 	log.Printf("[+] RBCD analysis report generated: %d targets analyzed, %d high-risk", len(results), len(report["high_risk_targets"].([]*RBCDResult)))
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["rbcd"] = report
 
 	return nil
 }
@@ -135,6 +139,10 @@ func (aa *AdvancedAnalyzer) RunS4UAnalysis() error {
 	// Generate report
 	report := analyzer.GenerateS4UReport(results)
 	log.Printf("[+] S4U analysis report generated: %v", report)
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["s4u"] = report
 
 	return nil
 }
@@ -203,6 +211,11 @@ func (aa *AdvancedAnalyzer) RunPKINITAnalysis() error {
 
 	log.Printf("[+] Found %d certificate templates", len(results))
 
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["pkinit"] = results
+
 	// Detect abuse patterns
 	patterns := analyzer.DetectPKINITAbuse(results)
 	if len(patterns) > 0 {
@@ -241,6 +254,10 @@ func (aa *AdvancedAnalyzer) RunDCSyncAnalysis() error {
 	// Generate report
 	report := analyzer.GenerateDCSyncReport(results)
 	log.Printf("[+] DCSync analysis report generated: %v", report)
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["dcsync"] = report
 
 	return nil
 }
@@ -397,6 +414,20 @@ func (aa *AdvancedAnalyzer) RunFullAnalysis() error {
 		if err := a.fn(); err != nil {
 			log.Printf("[x] %s analysis failed: %v", a.name, err)
 		}
+	}
+
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	deleg := make(map[string]interface{})
+	if v, ok := aa.Results["rbcd"]; ok {
+		deleg["rbcd"] = v
+	}
+	if v, ok := aa.Results["s4u"]; ok {
+		deleg["s4u"] = v
+	}
+	if len(deleg) > 0 {
+		aa.Results["delegation"] = deleg
 	}
 
 	log.Printf("[+] Full advanced analysis completed")

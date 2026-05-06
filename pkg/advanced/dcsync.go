@@ -1,6 +1,7 @@
 package advanced
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"strings"
@@ -36,54 +37,70 @@ func NewDCSyncAnalyzer(client *krb.LDAPClient, auditMode bool) *DCSyncAnalyzer {
 
 // EnumerateReplicationRights enumerates accounts with replication rights
 func (da *DCSyncAnalyzer) EnumerateReplicationRights() ([]*DCSyncResult, error) {
-	log.Printf("[*] Enumerating accounts with replication rights...")
+	log.Printf("[*] Enumerating DCSync-related ACEs on domain partition (nTSecurityDescriptor)...")
 
-	// Check if client is available
 	if da.Client == nil || da.Client.GetConnection() == nil {
 		log.Printf("[x] LDAP client not available, returning empty results")
 		return []*DCSyncResult{}, nil
 	}
 
-	// Search for accounts with replication rights
-	searchFilter := "(|(objectSid=*)(primaryGroupID=*))"
-	attributes := []string{
-		"distinguishedName",
-		"sAMAccountName",
-		"memberOf",
-		"userAccountControl",
-		"objectClass",
-	}
-
-	searchRequest := ldap.NewSearchRequest(
-		da.Client.GetBaseDN(),
-		ldap.ScopeWholeSubtree,
+	conn := da.Client.GetConnection()
+	base := da.Client.GetBaseDN()
+	sr, err := conn.Search(ldap.NewSearchRequest(
+		base,
+		ldap.ScopeBaseObject,
 		ldap.NeverDerefAliases,
 		0, 0, false,
-		searchFilter,
-		attributes,
+		"(objectClass=*)",
+		[]string{"nTSecurityDescriptor", "name"},
 		nil,
-	)
-
-	sr, err := da.Client.GetConnection().Search(searchRequest)
+	))
 	if err != nil {
-		return nil, fmt.Errorf("LDAP search failed: %v", err)
+		return nil, fmt.Errorf("domain object search failed: %v", err)
+	}
+	if len(sr.Entries) == 0 {
+		return nil, fmt.Errorf("domain base returned no entry")
 	}
 
-	log.Printf("Found %d accounts to analyze for replication rights", len(sr.Entries))
+	raw := sr.Entries[0].GetRawAttributeValue("nTSecurityDescriptor")
+	if len(raw) == 0 {
+		log.Printf("[!] nTSecurityDescriptor not readable (insufficient rights or attribute hidden); no DCSync ACE scan")
+		return []*DCSyncResult{}, nil
+	}
 
-	var results []*DCSyncResult
-	for _, entry := range sr.Entries {
-		result, err := da.analyzeReplicationRights(entry)
-		if err != nil {
-			log.Printf("[x] Failed to analyze account %s: %v", entry.DN, err)
-			continue
-		}
-		if len(result.ReplicationRights) > 0 {
-			results = append(results, result)
+	// Well-known extended rights used by DCSync (binary GUID as stored in AD ACEs)
+	patterns := []struct {
+		label string
+		blob  []byte
+	}{
+		{"DS-Replication-Get-Changes", []byte{0xaa, 0xf6, 0x31, 0x11, 0x07, 0x9c, 0xd1, 0x11, 0xf7, 0x9f, 0x00, 0xc0, 0x4f, 0xc2, 0xdc, 0xd2}},
+		{"DS-Replication-Get-Changes-All", []byte{0xad, 0xf6, 0x31, 0x11, 0x07, 0x9c, 0xd1, 0x11, 0xf7, 0x9f, 0x00, 0xc0, 0x4f, 0xc2, 0xdc, 0xd2}},
+		{"DS-Replication-Get-Changes-In-Filtered-Set", []byte{0x76, 0x5b, 0xe9, 0x89, 0x4d, 0x4d, 0x62, 0x4c, 0x99, 0x1a, 0x0f, 0xac, 0xbe, 0xda, 0x64, 0x0c}},
+	}
+
+	var rights []string
+	for _, p := range patterns {
+		if bytes.Contains(raw, p.blob) {
+			rights = append(rights, p.label)
 		}
 	}
 
-	return results, nil
+	if len(rights) == 0 {
+		log.Printf("[+] No DCSync extended-right GUIDs detected in domain descriptor (or descriptor unreadable)")
+		return []*DCSyncResult{}, nil
+	}
+
+	res := &DCSyncResult{
+		AccountDN:           base,
+		AccountName:         "(domain)",
+		ReplicationRights:   rights,
+		ExploitabilityScore: 95,
+		RiskLevel:           "High",
+		ExploitationPath:    []string{"DCSync extended rights are granted on the domain object — identify principals with these ACEs via BloodHound or effective access tooling."},
+		Recommendations:     []string{"Audit ACLs on the domain naming context for replication extended rights.", "Restrict membership in groups that receive these rights."},
+	}
+	log.Printf("[!] Domain security descriptor contains DCSync-class extended rights: %v", rights)
+	return []*DCSyncResult{res}, nil
 }
 
 // CheckSpecificAccount checks replication rights for specific account

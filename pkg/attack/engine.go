@@ -14,7 +14,7 @@ import (
 // MutatePassword generates variations of a password
 func MutatePassword(pass string) []string {
 	mutations := []string{pass}
-	
+
 	// Year mutation (e.g. 2024 -> 2025)
 	years := []string{"2023", "2024", "2025", "2026"}
 	for _, year := range years {
@@ -25,47 +25,45 @@ func MutatePassword(pass string) []string {
 			mutations = append(mutations, strings.ReplaceAll(pass, "2025", year))
 		}
 	}
-	
+
 	// Common suffix mutation
 	suffixes := []string{"!", "123", "@", "#"}
 	for _, s := range suffixes {
 		mutations = append(mutations, pass+s)
 	}
-	
+
 	return uniqueStrings(mutations)
 }
 
 // SprayTest tests a (user, pass) pair against available services
 func SprayTest(target, user, pass, domain string) map[string]bool {
 	results := make(map[string]bool)
-	
+
 	// 1. LDAP Bind Test
 	fullUser := user
 	if domain != "" && !strings.Contains(user, "\\") {
 		fullUser = fmt.Sprintf("%s\\%s", domain, user)
 	}
-	
+
 	opts := krb.ConnectOptions{
 		Target:   target,
 		BindUser: fullUser,
 		BindPass: pass,
 		Timeout:  2 * time.Second,
 	}
-	
+
 	client, err := krb.Connect(opts)
 	if err == nil {
-		results["LDAP"] = true
+		results["ldap_bind_ok"] = true
 		client.Close()
 	}
 
-	// 2. SMB Port Check (Simplified - true Spray would need full NTLM)
 	if testPort(target, 445) {
-		results["SMB"] = true
+		results["smb_445_open"] = true
 	}
 
-	// 3. WinRM Port Check
 	if testPort(target, 5985) {
-		results["WinRM"] = true
+		results["winrm_5985_open"] = true
 	}
 
 	return results

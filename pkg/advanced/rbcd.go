@@ -56,25 +56,15 @@ func (ra *RBCDAnalyzer) EnumerateRBCDTargets() ([]*RBCDResult, error) {
 		"userAccountControl",
 	}
 
-	searchRequest := ldap.NewSearchRequest(
-		ra.Client.GetBaseDN(),
-		ldap.ScopeWholeSubtree,
-		ldap.NeverDerefAliases,
-		0, 0, false,
-		searchFilter,
-		attributes,
-		nil,
-	)
-
-	sr, err := ra.Client.GetConnection().Search(searchRequest)
+	entries, err := ra.Client.SearchSubtreePaged(searchFilter, attributes, 500)
 	if err != nil {
 		return nil, fmt.Errorf("LDAP search failed: %v", err)
 	}
 
-	log.Printf("Found %d objects with RBCD configurations", len(sr.Entries))
+	log.Printf("Found %d objects with RBCD configurations", len(entries))
 
 	var results []*RBCDResult
-	for _, entry := range sr.Entries {
+	for _, entry := range entries {
 		result, err := ra.analyzeRBCDTarget(entry)
 		if err != nil {
 			log.Printf("[x] Failed to analyze RBCD target %s: %v", entry.DN, err)

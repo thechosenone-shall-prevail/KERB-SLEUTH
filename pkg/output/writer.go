@@ -17,12 +17,13 @@ import (
 
 // Results is the top-level output structure
 type Results struct {
-	Domain       DomainInfo      `json:"domain"`
-	Summary      Summary         `json:"summary"`
-	Candidates   []krb.Candidate `json:"candidates"`
-	RiskInsights []string        `json:"risk_insights,omitempty"`
-	Users        []ingest.User   `json:"users"`
-	Advanced     AdvancedResults `json:"advanced,omitempty"`
+	SchemaVersion string          `json:"schema_version,omitempty"`
+	Domain        DomainInfo      `json:"domain"`
+	Summary       Summary         `json:"summary"`
+	Candidates    []krb.Candidate `json:"candidates"`
+	RiskInsights  []string        `json:"risk_insights,omitempty"`
+	Users         []ingest.User   `json:"users"`
+	Advanced      AdvancedResults `json:"advanced,omitempty"`
 }
 
 // DomainInfo holds global domain data
@@ -54,6 +55,7 @@ type AdvancedResults struct {
 	DCSync         interface{}            `json:"dcsync,omitempty"`
 	Delegation     interface{}            `json:"delegation,omitempty"`
 	RBCD           interface{}            `json:"rbcd,omitempty"`
+	PKINIT         interface{}            `json:"pkinit,omitempty"`
 }
 
 func WriteJSON(path string, results Results) error {

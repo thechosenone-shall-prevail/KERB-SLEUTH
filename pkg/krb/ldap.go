@@ -2,9 +2,11 @@ package krb
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,10 +20,13 @@ type ConnectOptions struct {
 	Target   string
 	BindUser string
 	BindPass string
-	UseSSL   bool        // LDAPS on port 636
-	StartTLS bool        // Upgrade plaintext on port 389 to TLS
-	Insecure bool        // Skip TLS certificate verification
+	UseSSL   bool   // LDAPS on port 636
+	StartTLS bool   // Upgrade plaintext on port 389 to TLS
+	Insecure bool   // Skip TLS certificate verification
+	CAFile   string // PEM CA bundle for TLS (ignored if Insecure)
 	Timeout  time.Duration
+	KDC      string // Optional explicit Kerberos host
+	GC       string // Optional Global Catalog host (reserved)
 }
 
 // HashResult contains extracted Kerberos hashes
@@ -35,8 +40,12 @@ type HashResult struct {
 
 // LDAPClient wraps LDAP connection for AD enumeration
 type LDAPClient struct {
-	conn   *ldap.Conn
-	baseDN string
+	conn        *ldap.Conn
+	baseDN      string
+	ldapHost    string
+	bindSAM     string
+	bindPass    string
+	kdcOverride string
 }
 
 // Connect establishes an LDAP connection to a domain controller.
@@ -63,6 +72,17 @@ func Connect(opts ConnectOptions) (*LDAPClient, error) {
 	}
 	if !opts.Insecure {
 		tlsConfig.ServerName = host
+	}
+	if opts.CAFile != "" && !opts.Insecure {
+		pemData, err := os.ReadFile(opts.CAFile)
+		if err != nil {
+			return nil, fmt.Errorf("read CA file %s: %w", opts.CAFile, err)
+		}
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pemData) {
+			return nil, fmt.Errorf("no PEM certificates found in %s", opts.CAFile)
+		}
+		tlsConfig.RootCAs = pool
 	}
 
 	var conn *ldap.Conn
@@ -152,8 +172,12 @@ func Connect(opts ConnectOptions) (*LDAPClient, error) {
 	log.Printf("[+] Connected — Base DN: %s", baseDN)
 
 	return &LDAPClient{
-		conn:   conn,
-		baseDN: baseDN,
+		conn:        conn,
+		baseDN:      baseDN,
+		ldapHost:    host,
+		bindSAM:     SAMAccountNameFromBind(opts.BindUser),
+		bindPass:    opts.BindPass,
+		kdcOverride: strings.TrimSpace(opts.KDC),
 	}, nil
 }
 
@@ -183,6 +207,7 @@ func (c *LDAPClient) EnumerateUsers() ([]ingest.User, error) {
 		"servicePrincipalName",
 		"pwdLastSet",
 		"lastLogon",
+		"lastLogonTimestamp",
 		"memberOf",
 		"description",
 		"mail",
@@ -254,6 +279,7 @@ func (c *LDAPClient) EnumerateUsers() ([]ingest.User, error) {
 		// Parse Windows FILETIME timestamps
 		user.PwdLastSet = parseWindowsTimestamp(entry.GetAttributeValue("pwdLastSet"))
 		user.LastLogon = parseWindowsTimestamp(entry.GetAttributeValue("lastLogon"))
+		user.LastLogonTimestamp = parseWindowsTimestamp(entry.GetAttributeValue("lastLogonTimestamp"))
 
 		// Store raw fields for debugging
 		for _, attr := range entry.Attributes {
@@ -292,10 +318,10 @@ func (c *LDAPClient) GetDomainInfo() (*DomainInfo, error) {
 	}
 
 	entry := sr.Entries[0]
-	
+
 	// Map functional levels
 	flMap := map[string]string{
-		"0": "2000", "1": "2003 Mixed", "2": "2003", "3": "2008", 
+		"0": "2000", "1": "2003 Mixed", "2": "2003", "3": "2008",
 		"4": "2008 R2", "5": "2012", "6": "2012 R2", "7": "2016",
 	}
 	fl := entry.GetAttributeValue("domainFunctionality")
@@ -345,6 +371,35 @@ func (c *LDAPClient) GetBaseDN() string {
 	return c.baseDN
 }
 
+// LDAPHost returns the host used for the LDAP connection (KDC fallback).
+func (c *LDAPClient) LDAPHost() string {
+	return c.ldapHost
+}
+
+// SearchSubtreePaged runs a whole-subtree search with Simple Paged Results.
+func (c *LDAPClient) SearchSubtreePaged(filter string, attributes []string, pageSize uint32) ([]*ldap.Entry, error) {
+	if c.conn == nil {
+		return nil, fmt.Errorf("ldap: no connection")
+	}
+	if pageSize == 0 {
+		pageSize = 500
+	}
+	req := ldap.NewSearchRequest(
+		c.baseDN,
+		ldap.ScopeWholeSubtree,
+		ldap.NeverDerefAliases,
+		0, 0, false,
+		filter,
+		attributes,
+		nil,
+	)
+	sr, err := c.conn.SearchWithPaging(req, pageSize)
+	if err != nil {
+		return nil, err
+	}
+	return sr.Entries, nil
+}
+
 // DomainInfo holds basic domain information
 type DomainInfo struct {
 	BaseDN          string
@@ -367,7 +422,7 @@ func (c *LDAPClient) ExtractASREPHash(username, domain string) (*HashResult, err
 		domainInfo = &DomainInfo{DomainName: domain}
 	}
 
-	hash, err := extractRealASREPHash(username, domain, domainInfo)
+	hash, err := c.extractRealASREPHash(username, domain, domainInfo)
 	if err != nil {
 		return nil, fmt.Errorf("AS-REP extraction failed for %s: %v", username, err)
 	}
@@ -390,7 +445,7 @@ func (c *LDAPClient) ExtractKerberoastHash(username, domain, spn string) (*HashR
 		domainInfo = &DomainInfo{DomainName: domain}
 	}
 
-	hash, err := extractRealKerberoastHash(username, domain, spn, domainInfo)
+	hash, err := c.extractRealKerberoastHash(username, domain, spn, domainInfo)
 	if err != nil {
 		return nil, fmt.Errorf("Kerberoast extraction failed for %s (SPN: %s): %v", username, spn, err)
 	}
@@ -437,7 +492,7 @@ func parseWindowsTimestamp(timestamp string) time.Time {
 
 	// Windows FILETIME: 100-nanosecond intervals since 1601-01-01
 	if ts, err := strconv.ParseInt(timestamp, 10, 64); err == nil {
-		// To avoid int64 overflow when multiplying by 100ns, 
+		// To avoid int64 overflow when multiplying by 100ns,
 		// we convert to seconds first.
 		seconds := ts / 10000000
 		nanos := (ts % 10000000) * 100
@@ -457,38 +512,47 @@ func ensurePort(target, defaultPort string) string {
 
 // --- Kerberos Protocol Helpers (used by hash extraction) ---
 
-func extractRealASREPHash(username, domain string, domainInfo *DomainInfo) (string, error) {
-	kdcAddress := domainInfo.DNSHostName
-	if kdcAddress == "" {
-		kdcAddress = fmt.Sprintf("_kerberos._tcp.%s", strings.ToLower(domain))
+func (c *LDAPClient) extractRealASREPHash(username, domain string, domainInfo *DomainInfo) (string, error) {
+	realm := domainInfo.DomainName
+	if realm == "" {
+		realm = domain
 	}
-
-	kerbClient, err := createKerberosClient(domain, kdcAddress)
+	kdcHost, err := ResolveKDCHost(c.ldapHost, c.kdcOverride, domainInfo.DNSHostName, strings.ToLower(realm))
+	if err != nil {
+		return "", err
+	}
+	kerbClient, err := createKerberosClient(domain, kdcHost, c.bindSAM, c.bindPass)
 	if err != nil {
 		return "", fmt.Errorf("failed to create Kerberos client: %v", err)
 	}
-
 	return kerbClient.ExtractASREPHash(username)
 }
 
-func extractRealKerberoastHash(username, domain, spn string, domainInfo *DomainInfo) (string, error) {
-	kdcAddress := domainInfo.DNSHostName
-	if kdcAddress == "" {
-		kdcAddress = fmt.Sprintf("_kerberos._tcp.%s", strings.ToLower(domain))
+func (c *LDAPClient) extractRealKerberoastHash(serviceSAM, domain, spn string, domainInfo *DomainInfo) (string, error) {
+	if c.bindSAM == "" || c.bindPass == "" {
+		return "", fmt.Errorf("Kerberoasting requires authenticated LDAP bind credentials (-u/-p)")
 	}
-
-	kerbClient, err := createKerberosClient(domain, kdcAddress)
+	realm := domainInfo.DomainName
+	if realm == "" {
+		realm = domain
+	}
+	kdcHost, err := ResolveKDCHost(c.ldapHost, c.kdcOverride, domainInfo.DNSHostName, strings.ToLower(realm))
+	if err != nil {
+		return "", err
+	}
+	kerbClient, err := createKerberosClient(domain, kdcHost, c.bindSAM, c.bindPass)
 	if err != nil {
 		return "", fmt.Errorf("failed to create Kerberos client: %v", err)
 	}
-
-	return kerbClient.ExtractKerberoastHash(username, spn)
+	return kerbClient.ExtractKerberoastHash(serviceSAM, spn)
 }
 
-func createKerberosClient(domain, kdcAddress string) (KerberosProtocolClient, error) {
+func createKerberosClient(domain, kdcAddress, clientSAM, clientPass string) (KerberosProtocolClient, error) {
 	return &kerberosClientWrapper{
 		domain:     domain,
 		kdcAddress: kdcAddress,
+		clientSAM:  clientSAM,
+		clientPass: clientPass,
 	}, nil
 }
 
@@ -501,6 +565,8 @@ type KerberosProtocolClient interface {
 type kerberosClientWrapper struct {
 	domain     string
 	kdcAddress string
+	clientSAM  string
+	clientPass string
 	realClient *RealKerberosClient
 }
 
@@ -510,6 +576,7 @@ func (k *kerberosClientWrapper) ExtractASREPHash(username string) (string, error
 		if err != nil {
 			return "", err
 		}
+		client.SetClientCredentials(k.clientSAM, k.clientPass)
 		k.realClient = client
 	}
 	return k.realClient.ExtractASREPHash(username)
@@ -521,6 +588,7 @@ func (k *kerberosClientWrapper) ExtractKerberoastHash(username, spn string) (str
 		if err != nil {
 			return "", err
 		}
+		client.SetClientCredentials(k.clientSAM, k.clientPass)
 		k.realClient = client
 	}
 	return k.realClient.ExtractKerberoastHash(username, spn)

@@ -92,6 +92,8 @@ func TestKerberosClientWrapper(t *testing.T) {
 	wrapper := &kerberosClientWrapper{
 		domain:     "CORP.LOCAL",
 		kdcAddress: "10.0.0.1",
+		clientSAM:  "alice",
+		clientPass: "secret",
 	}
 
 	// Test that wrapper initializes properly
@@ -109,7 +111,7 @@ func TestKerberosClientWrapper(t *testing.T) {
 
 func TestCreateKerberosClient(t *testing.T) {
 	// Test creating a Kerberos client through the wrapper
-	client, err := createKerberosClient("CORP.LOCAL", "10.0.0.1")
+	client, err := createKerberosClient("CORP.LOCAL", "10.0.0.1", "alice", "secret")
 	if err != nil {
 		t.Fatalf("Failed to create Kerberos client: %v", err)
 	}
@@ -123,40 +125,37 @@ func TestCreateKerberosClient(t *testing.T) {
 }
 
 func TestExtractRealASREPHashFallback(t *testing.T) {
-	// Test that extraction falls back gracefully when KDC is unreachable
 	domainInfo := &DomainInfo{
 		DomainName:  "CORP.LOCAL",
 		DNSHostName: "unreachable-dc.corp.local",
 	}
-
-	// This should fail and return an error (no real KDC)
-	_, err := extractRealASREPHash("testuser", "CORP.LOCAL", domainInfo)
+	c := &LDAPClient{ldapHost: "127.0.0.1", kdcOverride: ""}
+	_, err := c.extractRealASREPHash("testuser", "CORP.LOCAL", domainInfo)
 	if err == nil {
 		t.Error("Expected error when KDC is unreachable, got nil")
 	}
-
-	// Error should indicate connection failure
 	if !strings.Contains(err.Error(), "failed") {
 		t.Errorf("Expected error message to contain 'failed', got: %v", err)
 	}
 }
 
 func TestExtractRealKerberoastHashFallback(t *testing.T) {
-	// Test that extraction falls back gracefully when KDC is unreachable
 	domainInfo := &DomainInfo{
 		DomainName:  "CORP.LOCAL",
 		DNSHostName: "unreachable-dc.corp.local",
 	}
-
-	// This should fail and return an error (no real KDC)
-	_, err := extractRealKerberoastHash("testuser", "CORP.LOCAL", "HTTP/web01", domainInfo)
+	c := &LDAPClient{
+		ldapHost:    "127.0.0.1",
+		kdcOverride: "",
+		bindSAM:     "alice",
+		bindPass:    "secret",
+	}
+	_, err := c.extractRealKerberoastHash("svc", "CORP.LOCAL", "HTTP/web01", domainInfo)
 	if err == nil {
 		t.Error("Expected error when KDC is unreachable, got nil")
 	}
-
-	// Error should indicate connection failure or missing credentials
 	errMsg := err.Error()
-	if !strings.Contains(errMsg, "failed") && !strings.Contains(errMsg, "requires") {
+	if !strings.Contains(errMsg, "failed") && !strings.Contains(errMsg, "GetServiceTicket") {
 		t.Errorf("Expected error to indicate failure, got: %v", err)
 	}
 }

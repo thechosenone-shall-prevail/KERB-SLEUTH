@@ -13,21 +13,22 @@ import (
 )
 
 type User struct {
-	SamAccountName        string
-	DistinguishedName     string
+	SamAccountName             string
+	DistinguishedName          string
 	Description                string
 	Info                       string
 	Comment                    string
 	PhysicalDeliveryOfficeName string
 	PostOfficeBox              string
 	Email                      string
-	DoesNotRequirePreAuth bool
-	UserAccountControl    int
-	ServicePrincipalNames []string
-	PwdLastSet            time.Time
-	LastLogon             time.Time
-	MemberOf              []string
-	RawFields             map[string]string
+	DoesNotRequirePreAuth      bool
+	UserAccountControl         int
+	ServicePrincipalNames      []string
+	PwdLastSet                 time.Time
+	LastLogon                  time.Time
+	LastLogonTimestamp         time.Time
+	MemberOf                   []string
+	RawFields                  map[string]string
 }
 
 func ParseAD(path string) ([]User, error) {

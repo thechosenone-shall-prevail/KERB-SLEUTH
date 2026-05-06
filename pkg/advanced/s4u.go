@@ -60,25 +60,15 @@ func (sa *S4UAnalyzer) EnumerateS4UDelegation() ([]*S4UResult, error) {
 		"objectClass",
 	}
 
-	searchRequest := ldap.NewSearchRequest(
-		sa.Client.GetBaseDN(),
-		ldap.ScopeWholeSubtree,
-		ldap.NeverDerefAliases,
-		0, 0, false,
-		searchFilter,
-		attributes,
-		nil,
-	)
-
-	sr, err := sa.Client.GetConnection().Search(searchRequest)
+	entries, err := sa.Client.SearchSubtreePaged(searchFilter, attributes, 500)
 	if err != nil {
 		return nil, fmt.Errorf("LDAP search failed: %v", err)
 	}
 
-	log.Printf("Found %d accounts with S4U delegation configurations", len(sr.Entries))
+	log.Printf("Found %d accounts with S4U delegation configurations", len(entries))
 
 	var results []*S4UResult
-	for _, entry := range sr.Entries {
+	for _, entry := range entries {
 		result, err := sa.analyzeS4UAccount(entry)
 		if err != nil {
 			log.Printf("[x] Failed to analyze S4U account %s: %v", entry.DN, err)

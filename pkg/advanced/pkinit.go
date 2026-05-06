@@ -56,25 +56,15 @@ func (pa *PKINITAnalyzer) EnumerateADCS() ([]*PKINITResult, error) {
 		"pKIKeyUsage",
 	}
 
-	searchRequest := ldap.NewSearchRequest(
-		pa.Client.GetBaseDN(),
-		ldap.ScopeWholeSubtree,
-		ldap.NeverDerefAliases,
-		0, 0, false,
-		searchFilter,
-		attributes,
-		nil,
-	)
-
-	sr, err := pa.Client.GetConnection().Search(searchRequest)
+	entries, err := pa.Client.SearchSubtreePaged(searchFilter, attributes, 500)
 	if err != nil {
 		return nil, fmt.Errorf("LDAP search failed: %v", err)
 	}
 
-	log.Printf("Found %d certificate templates", len(sr.Entries))
+	log.Printf("Found %d certificate templates", len(entries))
 
 	var results []*PKINITResult
-	for _, entry := range sr.Entries {
+	for _, entry := range entries {
 		result, err := pa.analyzeTemplate(entry)
 		if err != nil {
 			log.Printf("[x] Failed to analyze template %s: %v", entry.DN, err)
