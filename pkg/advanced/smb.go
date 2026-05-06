@@ -17,7 +17,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/hirochachacha/go-smb2"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/util"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/util"
 )
 
 // GPPSimpleResult represents a found password in GPP

@@ -2,7 +2,7 @@
 
 **Identity paths, proven cold.**
 
-![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/KERB-SLEUTH) ![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/KERB-SLEUTH) ![Platform](https://img.shields.io/badge/platform-windows-blue)
+![GitHub license](https://img.shields.io/github/license/thechosenone-shall-prevail/cold-relay) ![GitHub stars](https://img.shields.io/github/stars/thechosenone-shall-prevail/cold-relay) ![Go version](https://img.shields.io/github/go-mod/go-version/thechosenone-shall-prevail/cold-relay) ![Platform](https://img.shields.io/badge/platform-windows-blue)
 
 Cold Relay is a single-binary Active Directory security assessment tool for authorized operators. It collects Windows authentication evidence across LDAP, Kerberos, SMB, DNS, GPO, delegation, certificate services, sessions, and privilege metadata, then turns that evidence into deterministic findings and an offline attack graph.
 
@@ -24,22 +24,12 @@ Cold Relay records those traces.
 - Builds an offline `attack_graph` connecting principals, groups, SPNs, services, shares, files, secrets, sessions, ACL objects, trusts, delegation edges, certificate templates, and replication-right findings.
 - Writes JSON, CSV, and optional Sigma detection rules.
 
-## Current Binary
-
-The repository still builds the binary as `kerb-sleuth`:
-
-```bash
-go build -o kerb-sleuth ./cmd/kerb-sleuth
-```
-
-The product direction and README use the Cold Relay brand while the current command remains `kerb-sleuth`.
-
 ## Installation
 
 ```bash
-git clone https://github.com/thechosenone-shall-prevail/KERB-SLEUTH.git
-cd KERB-SLEUTH
-go build -o kerb-sleuth ./cmd/kerb-sleuth
+git clone https://github.com/thechosenone-shall-prevail/cold-relay.git
+cd cold-relay
+go build -o cold-relay ./cmd/cold-relay
 ```
 
 ## Quick Start
@@ -47,7 +37,7 @@ go build -o kerb-sleuth ./cmd/kerb-sleuth
 Passive mode performs protocol discovery, LDAP connection, user enumeration, candidate selection, deterministic validation labeling, and report generation.
 
 ```bash
-./kerb-sleuth -t 10.129.29.229 \
+./cold-relay -t 10.129.29.229 \
   -u wallace.everette@logging.htb \
   -p 'Welcome2026@' \
   --mode passive
@@ -56,7 +46,7 @@ Passive mode performs protocol discovery, LDAP connection, user enumeration, can
 Aggressive mode adds real Kerberos interactions and advanced AD/SMB analysis.
 
 ```bash
-./kerb-sleuth -t 10.129.29.229 \
+./cold-relay -t 10.129.29.229 \
   -u wallace.everette@logging.htb \
   -p 'Welcome2026@' \
   --mode aggressive
@@ -65,7 +55,7 @@ Aggressive mode adds real Kerberos interactions and advanced AD/SMB analysis.
 Write JSON, CSV, and Sigma rules:
 
 ```bash
-./kerb-sleuth -t 10.129.29.229 \
+./cold-relay -t 10.129.29.229 \
   -u wallace.everette@logging.htb \
   -p 'Welcome2026@' \
   --mode aggressive \
@@ -344,7 +334,7 @@ CSV output includes:
 `--siem` writes Sigma-style detections for common Kerberos attack signals such as AS-REP roasting and Kerberoasting.
 
 ```bash
-./kerb-sleuth -t dc01.corp.local -u alice@corp.local -p 'Password123!' --mode aggressive --siem
+./cold-relay -t dc01.corp.local -u alice@corp.local -p 'Password123!' --mode aggressive --siem
 ```
 
 ## Build And Test
@@ -352,7 +342,7 @@ CSV output includes:
 ```bash
 go test ./...
 go vet ./...
-go build -o kerb-sleuth ./cmd/kerb-sleuth
+go build -o cold-relay ./cmd/cold-relay
 ```
 
 ## Docker

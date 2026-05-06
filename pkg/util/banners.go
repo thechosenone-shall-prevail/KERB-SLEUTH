@@ -98,7 +98,7 @@ func GetRandomBanner() string {
 func DisplayBanner(version string) {
 	fmt.Println(GetRandomBanner())
 	fmt.Println()
-	fmt.Printf("%s                           -= Kerb-Sleuth v%s =-\n", DarkGray, version)
+	fmt.Printf("%s                           -= Cold Relay v%s =-\n", DarkGray, version)
 	fmt.Printf("                     -= Active Directory Security Scanner =-\n")
 	fmt.Printf("                          -= Authorized Use Only =-%s\n", Reset)
 	fmt.Println()

@@ -1,4 +1,4 @@
-module github.com/thechosenone-shall-prevail/KERB-SLEUTH
+module github.com/thechosenone-shall-prevail/cold-relay
 
 go 1.23.0
 
@@ -12,6 +12,12 @@ require (
 )
 
 require (
+	golang.org/x/mod v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/tools v0.13.0 // indirect
+)
+
+require (
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/geoffgarside/ber v1.1.0 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8-0.20250403174932-29230038a667 // indirect
@@ -21,7 +27,7 @@ require (
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
+	github.com/miekg/dns v1.1.56
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	github.com/miekg/dns v1.1.56
 )

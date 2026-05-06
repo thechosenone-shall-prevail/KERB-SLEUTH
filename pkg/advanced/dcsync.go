@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 )
 
 // DCSyncResult represents DCSync enumeration results

@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  kerb-sleuth:
+  cold-relay:
     build: .
-    image: kerb-sleuth:latest
-    container_name: kerb-sleuth
+    image: cold-relay:latest
+    container_name: cold-relay
     volumes:
       # Mount local data directory for input/output
       - ./data:/data
@@ -16,10 +16,10 @@ services:
     restart: unless-stopped
     
   # Development container with shell access
-  kerb-sleuth-dev:
+  cold-relay-dev:
     build: .
-    image: kerb-sleuth:latest
-    container_name: kerb-sleuth-dev
+    image: cold-relay:latest
+    container_name: cold-relay-dev
     volumes:
       - ./data:/data
       - ./results:/home/sleuth/results

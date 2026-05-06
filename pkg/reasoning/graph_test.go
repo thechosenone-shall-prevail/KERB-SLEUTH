@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/advanced"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/advanced"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 )
 
 func TestAnnotateCandidates(t *testing.T) {

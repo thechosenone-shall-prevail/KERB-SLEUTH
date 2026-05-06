@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/util"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/util"
 )
 
 // MutatePassword generates variations of a password

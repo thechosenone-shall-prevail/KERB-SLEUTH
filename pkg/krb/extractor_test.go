@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/ingest"
 )
 
 func TestFindASREPCandidates(t *testing.T) {

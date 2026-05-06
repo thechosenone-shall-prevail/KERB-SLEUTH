@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 )
 
 // KerberosRelayEngine handles Kerberos relay attacks

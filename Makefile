@@ -1,13 +1,13 @@
 .PHONY: build test clean install build-all docker-build docker-run release
 
-BINARY_NAME=kerb-sleuth
+BINARY_NAME=cold-relay
 VERSION=$(shell git describe --tags --always --dirty)
 LDFLAGS=-ldflags "-s -w -X main.version=${VERSION}"
-DOCKER_IMAGE=kerb-sleuth:latest
+DOCKER_IMAGE=cold-relay:latest
 
 # Development targets
 build:
-	go build ${LDFLAGS} -o ${BINARY_NAME} ./cmd/kerb-sleuth
+	go build ${LDFLAGS} -o ${BINARY_NAME} ./cmd/cold-relay
 
 test:
 	go test -v ./...
@@ -42,19 +42,19 @@ deps:
 
 # Cross compilation targets
 build-linux:
-	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o ${BINARY_NAME}-linux-amd64 ./cmd/kerb-sleuth
+	GOOS=linux GOARCH=amd64 go build ${LDFLAGS} -o ${BINARY_NAME}-linux-amd64 ./cmd/cold-relay
 
 build-linux-arm:
-	GOOS=linux GOARCH=arm64 go build ${LDFLAGS} -o ${BINARY_NAME}-linux-arm64 ./cmd/kerb-sleuth
+	GOOS=linux GOARCH=arm64 go build ${LDFLAGS} -o ${BINARY_NAME}-linux-arm64 ./cmd/cold-relay
 
 build-windows:
-	GOOS=windows GOARCH=amd64 go build ${LDFLAGS} -o ${BINARY_NAME}-windows-amd64.exe ./cmd/kerb-sleuth
+	GOOS=windows GOARCH=amd64 go build ${LDFLAGS} -o ${BINARY_NAME}-windows-amd64.exe ./cmd/cold-relay
 
 build-mac:
-	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o ${BINARY_NAME}-darwin-amd64 ./cmd/kerb-sleuth
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS} -o ${BINARY_NAME}-darwin-amd64 ./cmd/cold-relay
 
 build-mac-arm:
-	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o ${BINARY_NAME}-darwin-arm64 ./cmd/kerb-sleuth
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS} -o ${BINARY_NAME}-darwin-arm64 ./cmd/cold-relay
 
 build-all: clean build-linux build-linux-arm build-windows build-mac build-mac-arm
 

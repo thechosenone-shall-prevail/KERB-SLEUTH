@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 )
 
 func TestScoreCandidates(t *testing.T) {

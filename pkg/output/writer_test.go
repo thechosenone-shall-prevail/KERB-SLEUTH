@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/reasoning"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/reasoning"
 )
 
 func TestWriteJSON(t *testing.T) {

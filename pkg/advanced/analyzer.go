@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/krb"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 )
 
 // AdvancedAnalyzer provides access to all advanced Kerberos analysis features

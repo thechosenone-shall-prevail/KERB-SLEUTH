@@ -1,4 +1,4 @@
-# KERB-SLEUTH Dockerfile
+# COLD-RELAY Dockerfile
 # Multi-stage build for optimal image size
 
 FROM golang:1.23-alpine AS builder
@@ -19,7 +19,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o kerb-sleuth ./cmd/kerb-sleuth
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o cold-relay ./cmd/cold-relay
 
 # Final stage - minimal image
 FROM alpine:latest
@@ -34,7 +34,7 @@ RUN addgroup -g 1000 sleuth && \
 WORKDIR /home/sleuth/
 
 # Copy the binary from builder stage
-COPY --from=builder /app/kerb-sleuth .
+COPY --from=builder /app/cold-relay .
 COPY --from=builder /app/configs ./configs/
 
 # Change ownership
@@ -44,11 +44,11 @@ RUN chown -R sleuth:sleuth /home/sleuth/
 USER sleuth
 
 # Make binary executable
-RUN chmod +x kerb-sleuth
+RUN chmod +x cold-relay
 
 # Expose volume for data
 VOLUME ["/data"]
 
 # Default command - show help
-ENTRYPOINT ["./kerb-sleuth"]
+ENTRYPOINT ["./cold-relay"]
 CMD ["--help"]

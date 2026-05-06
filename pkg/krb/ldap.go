@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/go-ldap/ldap/v3"
-	"github.com/thechosenone-shall-prevail/KERB-SLEUTH/pkg/ingest"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/ingest"
 )
 
 // ConnectOptions holds all LDAP connection parameters.
