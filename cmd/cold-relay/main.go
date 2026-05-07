@@ -52,6 +52,7 @@ func main() {
 	outFile := flag.String("o", "results.json", "JSON output file")
 	csvOut := flag.String("csv", "", "Optional CSV output file")
 	jsonOnly := flag.Bool("json", false, "Output JSON to stdout only")
+	reportOut := flag.String("report", "", "Generate HTML report (e.g., report.html)")
 
 	// Legacy/advanced flags (still available for power users)
 	ldaps := flag.Bool("ldaps", false, "Use LDAPS (port 636)")
@@ -371,7 +372,7 @@ func main() {
 	}
 
 	// ── output ───────────────────────────────────────────────────────────
-	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly)
+	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly, *reportOut)
 
 	log.Printf("%s[+] Results → %s%s", util.Green, *outFile, util.Reset)
 	log.Printf("%s[+] Done: %d candidates (%d Kerberos / %d Recon / %d HVT)%s",
@@ -408,7 +409,7 @@ func runAdvanced(client *krb.LDAPClient, cfg *triage.Config, all, audit, rbcd, s
 	return analyzer.Results
 }
 
-func writeResults(results output.Results, candidates []krb.Candidate, cfg *triage.Config, outFile, csvOut string, siem, jsonOnly bool) {
+func writeResults(results output.Results, candidates []krb.Candidate, cfg *triage.Config, outFile, csvOut string, siem, jsonOnly bool, reportOut string) {
 	if jsonOnly {
 		data, _ := json.MarshalIndent(results, "", "  ")
 		fmt.Println(string(data))
@@ -431,6 +432,14 @@ func writeResults(results output.Results, candidates []krb.Candidate, cfg *triag
 			log.Printf("[x] Failed to write SIEM rules: %v", err)
 		}
 		log.Printf("%s[+] SIEM detection rules exported to %s%s", util.Green, siemPath, util.Reset)
+	}
+
+	if reportOut != "" {
+		if err := output.WriteHTMLReport(reportOut, results); err != nil {
+			log.Printf("[x] Failed to write HTML report: %v", err)
+		} else {
+			log.Printf("%s[+] HTML report exported to %s%s", util.Green, reportOut, util.Reset)
+		}
 	}
 }
 
