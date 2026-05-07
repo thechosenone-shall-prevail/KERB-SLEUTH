@@ -331,6 +331,132 @@ func (aa *AdvancedAnalyzer) RunPasswordModificationAnalysis(targetAccount string
 	return nil
 }
 
+// RunPasswordPolicyAnalysis runs password policy analysis
+func (aa *AdvancedAnalyzer) RunPasswordPolicyAnalysis() error {
+	log.Printf("[*] Starting password policy analysis...")
+
+	analyzer := NewPasswordPolicyAnalyzer(aa.Client, aa.AuditMode)
+
+	// Enumerate password policies
+	results, err := analyzer.EnumeratePasswordPolicies()
+	if err != nil {
+		return fmt.Errorf("password policy enumeration failed: %v", err)
+	}
+
+	log.Printf("[+] Found %d password policies", len(results))
+
+	// Generate report
+	report := analyzer.GeneratePasswordPolicyReport(results)
+	log.Printf("[+] Password policy report generated: %d total, %d high risk, %d medium risk",
+		report["total_policies"], report["high_risk_count"], report["medium_risk_count"])
+
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["password_policies"] = report
+
+	return nil
+}
+
+// RunLDAPConfigAnalysis runs LDAP configuration analysis
+func (aa *AdvancedAnalyzer) RunLDAPConfigAnalysis() error {
+	log.Printf("[*] Starting LDAP configuration analysis...")
+
+	analyzer := NewLDAPConfigAnalyzer(aa.Client, aa.AuditMode)
+
+	// Enumerate LDAP misconfigurations
+	results, err := analyzer.EnumerateLDAPMisconfigurations()
+	if err != nil {
+		return fmt.Errorf("LDAP configuration analysis failed: %v", err)
+	}
+
+	log.Printf("[+] Completed %d LDAP configuration checks", len(results))
+
+	// Generate report
+	report := analyzer.GenerateLDAPConfigReport(results)
+	log.Printf("[+] LDAP configuration report generated: %d total, %d vulnerable, %d secure",
+		report["total_checks"], report["vulnerable_count"], report["secure_count"])
+
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["ldap_config"] = report
+
+	return nil
+}
+
+// RunUserAttributeAnalysis runs user attribute flags analysis
+func (aa *AdvancedAnalyzer) RunUserAttributeAnalysis() error {
+	log.Printf("[*] Starting user attribute analysis...")
+
+	analyzer := NewUserAttributeAnalyzer(aa.Client, aa.AuditMode)
+
+	// Enumerate user attributes
+	results, err := analyzer.EnumerateUserAttributes()
+	if err != nil {
+		return fmt.Errorf("user attribute enumeration failed: %v", err)
+	}
+
+	log.Printf("[+] Analyzed %d user objects for attribute flags", len(results))
+
+	// Detect abuse patterns
+	patterns := analyzer.DetectAttributeAbuse(results)
+	if len(patterns) > 0 {
+		log.Printf("[+] Detected user attribute abuse patterns:")
+		for _, pattern := range patterns {
+			log.Printf("   - %s", pattern)
+		}
+	}
+
+	// Generate report
+	report := analyzer.GenerateUserAttributeReport(results)
+	log.Printf("[+] User attribute report generated: %d total, %d password not required, %d password never expires, %d SID history",
+		report["total_users_analyzed"], report["password_not_required_count"], report["password_never_expires_count"], report["sid_history_count"])
+
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["user_attributes"] = report
+
+	return nil
+}
+
+// RunShadowCredentialsAnalysis runs shadow credentials (Key Trust AD mapping) analysis
+func (aa *AdvancedAnalyzer) RunShadowCredentialsAnalysis() error {
+	log.Printf("[*] Starting shadow credentials analysis...")
+
+	analyzer := NewShadowCredentialsAnalyzer(aa.Client, aa.AuditMode)
+
+	// Enumerate shadow credentials
+	results, err := analyzer.EnumerateShadowCredentials()
+	if err != nil {
+		return fmt.Errorf("shadow credentials enumeration failed: %v", err)
+	}
+
+	log.Printf("[+] Found %d objects with shadow credentials", len(results))
+
+	// Detect abuse patterns
+	patterns := analyzer.DetectShadowCredentialAbuse(results)
+	if len(patterns) > 0 {
+		log.Printf("[+] Detected shadow credential abuse patterns:")
+		for _, pattern := range patterns {
+			log.Printf("   - %s", pattern)
+		}
+	}
+
+	// Generate report
+	report := analyzer.GenerateShadowCredentialsReport(results)
+	log.Printf("[+] Shadow credentials report generated: %d total, %d critical, %d high",
+		report["total_shadow_credentials"], report["critical_risk_count"], report["high_risk_count"])
+
+	if aa.Results == nil {
+		aa.Results = make(map[string]interface{})
+	}
+	aa.Results["shadow_credentials"] = report
+
+	return nil
+}
+
 // RunSMBAnalysis runs SMB share enumeration and GPP scanning
 func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 	log.Printf("[*] Starting SMB and GPP analysis...")
@@ -409,6 +535,10 @@ func (aa *AdvancedAnalyzer) RunFullAnalysis() error {
 		{"gpo", aa.RunGPOAnalysis},
 		{"sessions", aa.RunSessionAnalysis},
 		{"acl", aa.RunACLAnalysis},
+		{"user_attributes", aa.RunUserAttributeAnalysis},
+		{"shadow_credentials", aa.RunShadowCredentialsAnalysis},
+		{"password_policy", aa.RunPasswordPolicyAnalysis},
+		{"ldap_config", aa.RunLDAPConfigAnalysis},
 		{"rbcd", aa.RunRBCDAnalysis},
 		{"s4u", aa.RunS4UAnalysis},
 		{"pkinit", aa.RunPKINITAnalysis},
