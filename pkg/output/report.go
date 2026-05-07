@@ -149,104 +149,105 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #1a1a1a;
-            background-color: #0a0a0a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.5;
+            color: #d4d4d4;
+            background-color: #0d0d0d;
+            font-size: 14px;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 60px 40px;
-            background-color: #111;
+            padding: 40px 32px;
         }
 
         .header {
-            margin-bottom: 60px;
-            padding-bottom: 30px;
-            border-bottom: 1px solid #333;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #262626;
         }
 
         .header h1 {
             font-size: 28px;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 8px;
-            letter-spacing: -0.5px;
+            font-weight: 600;
+            color: #e5e5e5;
+            margin-bottom: 6px;
+            letter-spacing: -0.3px;
         }
 
         .header .subtitle {
-            font-size: 14px;
-            color: #666;
+            font-size: 12px;
+            color: #737373;
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
         .header .meta {
-            margin-top: 24px;
-            font-size: 13px;
-            color: #888;
+            margin-top: 16px;
+            font-size: 12px;
+            color: #737373;
             display: flex;
-            gap: 24px;
+            gap: 28px;
         }
 
-        .header .meta p {
+        .header .meta span {
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
         .header .meta strong {
-            color: #fff;
+            color: #d4d4d4;
+            font-weight: 500;
         }
 
         .section {
-            margin-bottom: 50px;
+            margin-bottom: 40px;
         }
 
         .section h2 {
-            color: #fff;
-            font-size: 18px;
+            color: #e5e5e5;
+            font-size: 16px;
             font-weight: 600;
-            margin-bottom: 24px;
-            letter-spacing: -0.3px;
+            margin-bottom: 16px;
+            letter-spacing: -0.2px;
         }
 
         .summary-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 16px;
-            margin-bottom: 30px;
+            gap: 12px;
+            margin-bottom: 24px;
         }
 
         .summary-card {
-            background: #1a1a1a;
+            background: #171717;
             padding: 20px;
-            border: 1px solid #333;
+            border: 1px solid #262626;
         }
 
         .summary-card h3 {
             font-size: 11px;
-            color: #888;
-            margin-bottom: 8px;
+            color: #737373;
+            margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            font-weight: 600;
+            font-weight: 500;
         }
 
         .summary-card .value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: -1px;
+            font-size: 32px;
+            font-weight: 600;
+            color: #e5e5e5;
+            letter-spacing: -0.8px;
         }
 
         .domain-info {
-            background: #1a1a1a;
+            background: #171717;
             padding: 20px;
-            border: 1px solid #333;
+            border: 1px solid #262626;
             margin-bottom: 20px;
         }
 
@@ -256,8 +257,8 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .domain-info td {
-            padding: 12px 0;
-            border-bottom: 1px solid #222;
+            padding: 10px 0;
+            border-bottom: 1px solid #262626;
             font-size: 13px;
         }
 
@@ -266,13 +267,14 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .domain-info td:first-child {
-            color: #888;
+            color: #737373;
             width: 180px;
             font-weight: 500;
         }
 
         .domain-info td:last-child {
-            color: #fff;
+            color: #d4d4d4;
+            font-weight: 500;
         }
 
         .findings-table {
@@ -280,26 +282,28 @@ const htmlTemplate = `<!DOCTYPE html>
             border-collapse: collapse;
             margin-bottom: 20px;
             font-size: 13px;
+            background: #171717;
+            border: 1px solid #262626;
         }
 
         .findings-table th,
         .findings-table td {
-            padding: 14px 16px;
+            padding: 12px 14px;
             text-align: left;
-            border-bottom: 1px solid #333;
+            border-bottom: 1px solid #262626;
         }
 
         .findings-table th {
-            background-color: #1a1a1a;
-            color: #888;
-            font-weight: 600;
+            background-color: #1f1f1f;
+            color: #a3a3a3;
+            font-weight: 500;
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .findings-table td {
-            color: #e0e0e0;
+            color: #d4d4d4;
         }
 
         .findings-table tr:last-child td {
@@ -309,82 +313,66 @@ const htmlTemplate = `<!DOCTYPE html>
         .badge {
             display: inline-block;
             padding: 4px 10px;
-            border-radius: 4px;
             font-size: 11px;
-            font-weight: 600;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
 
         .badge-validated {
-            background-color: #1a1a1a;
-            color: #22c55e;
-            border: 1px solid #22c55e;
+            color: #4ade80;
         }
 
         .badge-likely {
-            background-color: #1a1a1a;
-            color: #f59e0b;
-            border: 1px solid #f59e0b;
+            color: #fbbf24;
         }
 
         .badge-theoretical {
-            background-color: #1a1a1a;
-            color: #6366f1;
-            border: 1px solid #6366f1;
+            color: #a78bfa;
         }
 
         .badge-blocked {
-            background-color: #1a1a1a;
-            color: #ef4444;
-            border: 1px solid #ef4444;
+            color: #f87171;
         }
 
         .badge-insufficient {
-            background-color: #1a1a1a;
-            color: #6b7280;
-            border: 1px solid #6b7280;
+            color: #9ca3af;
         }
 
         .severity-critical {
-            background-color: #dc2626;
-            color: white;
-            border: none;
+            color: #f87171;
+            font-weight: 500;
         }
 
         .severity-high {
-            background-color: #ea580c;
-            color: white;
-            border: none;
+            color: #fb923c;
+            font-weight: 500;
         }
 
         .severity-medium {
-            background-color: #d97706;
-            color: white;
-            border: none;
+            color: #facc15;
+            font-weight: 500;
         }
 
         .severity-low {
-            background-color: #65a30d;
-            color: white;
-            border: none;
+            color: #a3e635;
+            font-weight: 500;
         }
 
         .severity-unknown {
-            background-color: #333;
-            color: #888;
-            border: none;
+            color: #737373;
+            font-weight: 500;
         }
 
         .attack-path {
-            background: #1a1a1a;
-            border: 1px solid #333;
+            background: #171717;
+            border: 1px solid #262626;
             padding: 20px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .attack-path h4 {
-            color: #fff;
+            color: #e5e5e5;
             margin-bottom: 12px;
             font-size: 14px;
             font-weight: 600;
@@ -399,7 +387,7 @@ const htmlTemplate = `<!DOCTYPE html>
         .evidence-list li,
         .blocker-list li {
             margin-bottom: 6px;
-            color: #999;
+            color: #a3a3a3;
             font-size: 13px;
             padding-left: 16px;
             position: relative;
@@ -410,18 +398,18 @@ const htmlTemplate = `<!DOCTYPE html>
             content: "•";
             position: absolute;
             left: 0;
-            color: #666;
+            color: #525252;
         }
 
         .risk-insights {
-            background: #1a1a1a;
-            border: 1px solid #333;
+            background: #171717;
+            border: 1px solid #262626;
             padding: 20px;
         }
 
         .risk-insights h3 {
-            color: #fff;
-            margin-bottom: 16px;
+            color: #e5e5e5;
+            margin-bottom: 12px;
             font-size: 14px;
             font-weight: 600;
         }
@@ -432,7 +420,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
         .risk-insights li {
             margin-bottom: 8px;
-            color: #e0e0e0;
+            color: #d4d4d4;
             font-size: 13px;
             padding-left: 16px;
             position: relative;
@@ -442,71 +430,62 @@ const htmlTemplate = `<!DOCTYPE html>
             content: "•";
             position: absolute;
             left: 0;
-            color: #ef4444;
+            color: #f87171;
         }
 
         .footer {
-            margin-top: 60px;
-            padding-top: 30px;
-            border-top: 1px solid #333;
+            margin-top: 48px;
+            padding-top: 20px;
+            border-top: 1px solid #262626;
             text-align: center;
-            color: #666;
+            color: #737373;
             font-size: 12px;
         }
 
         .footer p {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         @media print {
             body {
                 background-color: #fff;
-                color: #000;
+                color: #171717;
             }
             .container {
-                background-color: #fff;
-                padding: 40px;
+                padding: 24px;
             }
             .header h1 {
-                color: #000;
+                color: #171717;
             }
             .header .subtitle {
-                color: #666;
+                color: #737373;
             }
             .header .meta strong {
-                color: #000;
+                color: #171717;
             }
             .section h2 {
-                color: #000;
+                color: #171717;
             }
             .summary-card,
             .domain-info,
             .attack-path,
             .risk-insights {
                 background: #f5f5f5;
-                border-color: #ddd;
+                border-color: #e5e5e5;
             }
             .summary-card .value,
             .domain-info td:last-child,
             .attack-path h4,
             .risk-insights h3,
             .risk-insights li {
-                color: #000;
+                color: #171717;
             }
             .findings-table th {
-                background-color: #f5f5f5;
-                color: #666;
+                background-color: #e5e5e5;
+                color: #525252;
             }
             .findings-table td {
-                color: #333;
-            }
-            .badge-validated,
-            .badge-likely,
-            .badge-theoretical,
-            .badge-blocked,
-            .badge-insufficient {
-                background-color: #fff;
-                border-color: #000;
+                color: #404040;
             }
         }
     </style>
@@ -517,9 +496,9 @@ const htmlTemplate = `<!DOCTYPE html>
             <h1>Cold Relay</h1>
             <div class="subtitle">Security Assessment Report</div>
             <div class="meta">
-                <p><strong>Domain:</strong> {{.Domain.Name}}</p>
-                <p><strong>Generated:</strong> {{.GeneratedAt}}</p>
-                <p><strong>Schema:</strong> {{.SchemaVersion}}</p>
+                <span><strong>Domain:</strong> {{.Domain.Name}}</span>
+                <span><strong>Generated:</strong> {{.GeneratedAt}}</span>
+                <span><strong>Schema:</strong> {{.SchemaVersion}}</span>
             </div>
         </div>
 
