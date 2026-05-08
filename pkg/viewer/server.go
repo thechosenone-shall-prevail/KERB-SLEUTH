@@ -145,6 +145,20 @@ const indexHTML = `<!doctype html>
     #graph { position: relative; flex: 1 1 auto; min-width: 0; height: 100%; overflow: hidden; }
     /* Ensure the renderer stays inside the graph container and can't cover the sidebar */
     #graph canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
+    #overlay { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+    .cluster-title {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      color: #e2e8f0;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      padding: 6px 10px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 10px;
+      background: rgba(2, 6, 23, 0.72);
+      white-space: nowrap;
+    }
     #sidebar { position: relative; z-index: 5; flex: 0 0 420px; width: 420px; max-width: 420px; box-sizing: border-box; border-left: 1px solid #1f2937; background: #111827; padding: 12px; overflow: auto; }
     .title { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
     .meta { font-size: 12px; color: #9ca3af; margin-bottom: 12px; }
@@ -162,7 +176,7 @@ const indexHTML = `<!doctype html>
 </head>
 <body>
   <div id="app">
-    <div id="graph"></div>
+    <div id="graph"><div id="overlay"></div></div>
     <div id="sidebar">
       <div class="title">Cold Relay 3D Graph</div>
       <div id="meta" class="meta">Loading...</div>
@@ -170,11 +184,6 @@ const indexHTML = `<!doctype html>
         <input id="search" placeholder="Search node label..." />
       </div>
       <div class="row">
-        <select id="labelToggle">
-          <option value="auto">Labels: Auto</option>
-          <option value="on">Labels: On</option>
-          <option value="off">Labels: Off</option>
-        </select>
         <select id="layoutToggle">
           <option value="cluster">Layout: Clustered</option>
           <option value="free">Layout: Free</option>
@@ -219,8 +228,6 @@ const indexHTML = `<!doctype html>
     </div>
   </div>
   <script src="https://unpkg.com/3d-force-graph"></script>
-  <script src="https://unpkg.com/d3@7"></script>
-  <script src="https://unpkg.com/three-spritetext"></script>
   <script>
     const baseColors = {
       principal: '#4f46e5',
@@ -252,9 +259,9 @@ const indexHTML = `<!doctype html>
     let nodeById = {};
     const PERF_NODE_LIMIT = 650;
     const PERF_LINK_LIMIT = 1800;
-    const AUTO_LABEL_NODE_LIMIT = 220;
-    let labelsMode = 'auto';
     let layoutMode = 'cluster';
+    let clusterHeaders = [];
+    const overlay = document.getElementById('overlay');
     const graph = ForceGraph3D()(document.getElementById('graph'))
       .backgroundColor('#0b0f16')
       .nodeLabel(n => n.label + ' (' + n.type + ')')
@@ -288,27 +295,6 @@ const indexHTML = `<!doctype html>
           i++;
         }
       });
-    }
-
-    function applyLabels() {
-      const shouldShow =
-        labelsMode === 'on' ? true :
-        labelsMode === 'off' ? false :
-        (fullData && fullData.nodes && fullData.nodes.length <= AUTO_LABEL_NODE_LIMIT);
-
-      graph.nodeThreeObject(node => {
-        const SpriteText = window.SpriteText;
-        const isHeader = !!(node && node.properties && node.properties.cluster_header);
-        if (!isHeader && !shouldShow) return null;
-
-        const s = new SpriteText(node.label || node.id || '');
-        s.color = isHeader ? '#e2e8f0' : '#cbd5e1';
-        s.textHeight = isHeader ? 10 : 4;
-        s.backgroundColor = isHeader ? 'rgba(2, 6, 23, 0.70)' : 'rgba(15, 23, 42, 0.65)';
-        s.padding = isHeader ? 6 : 2;
-        return s;
-      });
-      graph.nodeThreeObjectExtend(true);
     }
 
     function typeAnchorPositions(types) {
@@ -379,6 +365,43 @@ const indexHTML = `<!doctype html>
       };
     }
 
+    function renderClusterOverlay(headers) {
+      overlay.innerHTML = '';
+      clusterHeaders = headers.map(h => ({
+        id: h.id,
+        label: h.label,
+        x: h.fx ?? h.x ?? 0,
+        y: h.fy ?? h.y ?? 0,
+        z: h.fz ?? h.z ?? 0,
+        el: null
+      }));
+      clusterHeaders.forEach(h => {
+        const el = document.createElement('div');
+        el.className = 'cluster-title';
+        el.textContent = h.label;
+        overlay.appendChild(el);
+        h.el = el;
+      });
+      requestAnimationFrame(tickOverlay);
+    }
+
+    function tickOverlay() {
+      if (!clusterHeaders || clusterHeaders.length === 0) return;
+      clusterHeaders.forEach(h => {
+        if (!h.el) return;
+        const p = graph.graph2ScreenCoords(h.x, h.y, h.z);
+        // Hide if behind camera or outside viewport
+        if (!p || isNaN(p.x) || isNaN(p.y) || p.z > 1) {
+          h.el.style.display = 'none';
+          return;
+        }
+        h.el.style.display = 'block';
+        h.el.style.left = p.x + 'px';
+        h.el.style.top = p.y + 'px';
+      });
+      requestAnimationFrame(tickOverlay);
+    }
+
     function applyLayout() {
       if (!fullData || !fullData.nodes) return;
       if (layoutMode !== 'cluster') {
@@ -392,7 +415,12 @@ const indexHTML = `<!doctype html>
       const strength = 0.08;
       graph.d3Force('x', d3.forceX(n => (anchors[n.type] ? anchors[n.type].x : 0)).strength(strength));
       graph.d3Force('y', d3.forceY(n => (anchors[n.type] ? anchors[n.type].y : 0)).strength(strength));
-      graph.d3Force('z', d3.forceZ(n => (anchors[n.type] ? anchors[n.type].z : 0)).strength(strength));
+      if (typeof d3 !== 'undefined' && typeof d3.forceZ === 'function') {
+        graph.d3Force('z', d3.forceZ(n => (anchors[n.type] ? anchors[n.type].z : 0)).strength(strength));
+      } else {
+        // If forceZ isn't available in the runtime, don't break rendering.
+        graph.d3Force('z', null);
+      }
     }
 
     function renderLegend() {
@@ -607,10 +635,9 @@ const indexHTML = `<!doctype html>
         renderFilters();
         renderLegend();
         graph.graphData(optimizeForRender(fullData.nodes, fullData.links));
-        applyLabels();
         applyLayout();
-        document.getElementById('labelToggle').addEventListener('change', (e) => { labelsMode = e.target.value; applyLabels(); });
         document.getElementById('layoutToggle').addEventListener('change', (e) => { layoutMode = e.target.value; applyLayout(); });
+        renderClusterOverlay(injected.nodes.filter(n => n.properties && n.properties.cluster_header));
         document.getElementById('search').addEventListener('input', applyFilters);
         document.getElementById('typeFilter').addEventListener('change', applyFilters);
         document.getElementById('edgeFilter').addEventListener('change', applyFilters);
