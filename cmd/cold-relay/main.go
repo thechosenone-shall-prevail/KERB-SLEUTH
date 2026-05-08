@@ -106,12 +106,12 @@ func main() {
 	}
 
 	if *target == "" {
-		util.DisplayBanner("v5.1.0")
+		util.DisplayBanner("1.0")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	util.DisplayBanner("v5.1.0")
+	util.DisplayBanner("1.0")
 
 	// Initial protocol discovery
 	services := runProtocolDiscovery(*target)

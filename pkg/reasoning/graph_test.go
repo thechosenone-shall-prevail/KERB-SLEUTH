@@ -27,8 +27,8 @@ func TestAnnotateCandidates(t *testing.T) {
 	if annotated[1].Validation != krb.StatusValidated {
 		t.Fatalf("expected ASREP with hash to be validated, got %q", annotated[1].Validation)
 	}
-	if annotated[2].Validation != krb.StatusValidated {
-		t.Fatalf("expected HVT membership finding to be validated, got %q", annotated[2].Validation)
+	if annotated[2].Validation != krb.StatusLikely {
+		t.Fatalf("expected HVT membership finding to be likely, got %q", annotated[2].Validation)
 	}
 }
 
