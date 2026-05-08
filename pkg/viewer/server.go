@@ -257,6 +257,7 @@ const indexHTML = `<!doctype html>
     let payload;
     let fullData;
     let nodeById = {};
+    let renderData = null;
     const PERF_NODE_LIMIT = 650;
     const PERF_LINK_LIMIT = 1800;
     let layoutMode = 'cluster';
@@ -369,7 +370,7 @@ const indexHTML = `<!doctype html>
     function shouldShowNodeLabels() {
       if (nodeLabelMode === 'on') return true;
       if (nodeLabelMode === 'off') return false;
-      return fullData && fullData.nodes && fullData.nodes.length <= AUTO_NODE_LABEL_LIMIT;
+      return renderData && renderData.nodes && renderData.nodes.length <= AUTO_NODE_LABEL_LIMIT;
     }
 
     function renderNodeLabelOverlay(nodes) {
@@ -408,7 +409,7 @@ const indexHTML = `<!doctype html>
       });
 
       if (updateNodeLabels && shouldShowNodeLabels() && fullData && fullData.nodes) {
-        fullData.nodes.forEach(n => {
+        (renderData && renderData.nodes ? renderData.nodes : []).forEach(n => {
           if (!n.__labelEl) return;
           const p = graph.graph2ScreenCoords(n.x || 0, n.y || 0, n.z || 0);
           if (!p || isNaN(p.x) || isNaN(p.y) || p.z > 1) {
@@ -424,25 +425,30 @@ const indexHTML = `<!doctype html>
     }
 
     function applyLayout() {
-      if (!fullData || !fullData.nodes) return;
+      if (!renderData || !renderData.nodes) return;
       if (layoutMode !== 'cluster') {
         // free layout: unpin nodes
-        fullData.nodes.forEach(n => { delete n.fx; delete n.fy; delete n.fz; });
-        graph.graphData(fullData);
+        renderData.nodes.forEach(n => { delete n.fx; delete n.fy; delete n.fz; });
+        graph.graphData(renderData);
         return;
       }
 
       // clustered layout without d3 dependency: pin nodes near per-type anchors
       const anchors = typeAnchorPositions(payload.node_types || []);
       const jitter = 18;
-      fullData.nodes.forEach(n => {
+      const typeIndex = {};
+      (payload.node_types || []).forEach((t, i) => { typeIndex[t] = i; });
+      renderData.nodes.forEach(n => {
         const a = anchors[n.type];
         if (!a) return;
+        // Give each type a Z "shelf" so clustered mode stays 3D, not a flat plane.
+        const zi = (typeIndex[n.type] ?? 0) % 3; // 0..2
+        const zShelf = (zi - 1) * 90; // -90, 0, +90
         n.fx = a.x + (Math.random() * jitter - jitter / 2);
         n.fy = a.y + (Math.random() * jitter - jitter / 2);
-        n.fz = a.z;
+        n.fz = zShelf;
       });
-      graph.graphData(fullData);
+      graph.graphData(renderData);
     }
 
     function renderLegend() {
@@ -490,7 +496,11 @@ const indexHTML = `<!doctype html>
         return (!ef || l.type === ef) && nodeSet.has(s) && nodeSet.has(t);
       });
       const nodes = fullData.nodes.filter(n => nodeSet.has(n.id));
-      graph.graphData(optimizeForRender(nodes, links));
+      renderData = optimizeForRender(nodes, links);
+      graph.graphData(renderData);
+      // rebuild overlay labels for the currently rendered dataset
+      renderNodeLabelOverlay(renderData.nodes);
+      applyLayout();
     }
 
     function optimizeForRender(nodes, links) {
@@ -655,7 +665,8 @@ const indexHTML = `<!doctype html>
           'Domain: ' + (data.meta.domain || '-') + ' | Nodes: ' + data.meta.total_nodes + ' | Links: ' + data.meta.total_links;
         renderFilters();
         renderLegend();
-        graph.graphData(optimizeForRender(fullData.nodes, fullData.links));
+        renderData = optimizeForRender(fullData.nodes, fullData.links);
+        graph.graphData(renderData);
         applyLayout();
         document.getElementById('layoutToggle').addEventListener('change', (e) => { layoutMode = e.target.value; applyLayout(); });
         // cluster titles are overlay-only (not graph nodes)
@@ -668,7 +679,7 @@ const indexHTML = `<!doctype html>
           fz: anchors[t].z
         }));
         renderClusterOverlay(headers);
-        renderNodeLabelOverlay(fullData.nodes);
+        renderNodeLabelOverlay(renderData.nodes);
         document.getElementById('search').addEventListener('input', applyFilters);
         document.getElementById('typeFilter').addEventListener('change', applyFilters);
         document.getElementById('edgeFilter').addEventListener('change', applyFilters);
