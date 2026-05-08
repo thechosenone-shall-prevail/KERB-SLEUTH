@@ -262,6 +262,15 @@ const indexHTML = `<!doctype html>
     let layoutMode = 'cluster';
     let clusterHeaders = [];
     const overlay = document.getElementById('overlay');
+    const nodeLabelOverlay = document.createElement('div');
+    nodeLabelOverlay.style.position = 'absolute';
+    nodeLabelOverlay.style.inset = '0';
+    nodeLabelOverlay.style.pointerEvents = 'none';
+    nodeLabelOverlay.style.zIndex = '3';
+    overlay.parentElement.appendChild(nodeLabelOverlay);
+    const AUTO_NODE_LABEL_LIMIT = 160;
+    let nodeLabelMode = 'auto'; // auto | on | off
+    let overlayFrame = 0;
     const graph = ForceGraph3D()(document.getElementById('graph'))
       .backgroundColor('#0b0f16')
       .nodeLabel(n => n.label + ' (' + n.type + ')')
@@ -275,10 +284,7 @@ const indexHTML = `<!doctype html>
       .cooldownTicks(80)
       .d3AlphaDecay(0.04)
       .d3VelocityDecay(0.35)
-      .onNodeClick(node => {
-        if (node && node.properties && node.properties.cluster_header) return;
-        focusNode(node);
-      });
+      .onNodeClick(node => focusNode(node));
 
     function normalizeRef(ref) {
       if (ref && typeof ref === 'object' && ref.id) return ref.id;
@@ -340,31 +346,6 @@ const indexHTML = `<!doctype html>
       return map[type] || (t ? (t[0].toUpperCase() + t.slice(1)) : 'Cluster');
     }
 
-    function injectClusterHeaders(data) {
-      const types = (data.node_types || []).filter(t => (t || '').toLowerCase() !== 'unknown');
-      const anchors = typeAnchorPositions(types);
-      const headerNodes = [];
-      types.forEach(t => {
-        const a = anchors[t];
-        if (!a) return;
-        headerNodes.push({
-          id: '__cluster__:' + t,
-          label: clusterTitleForType(t),
-          type: '__cluster__',
-          properties: { cluster_header: true, target_type: t },
-          fx: a.x,
-          fy: a.y + 70,
-          fz: a.z
-        });
-      });
-      return {
-        nodes: [...headerNodes, ...(data.nodes || [])],
-        links: (data.links || []),
-        headerIds: new Set(headerNodes.map(n => n.id)),
-        anchors
-      };
-    }
-
     function renderClusterOverlay(headers) {
       overlay.innerHTML = '';
       clusterHeaders = headers.map(h => ({
@@ -385,8 +366,34 @@ const indexHTML = `<!doctype html>
       requestAnimationFrame(tickOverlay);
     }
 
+    function shouldShowNodeLabels() {
+      if (nodeLabelMode === 'on') return true;
+      if (nodeLabelMode === 'off') return false;
+      return fullData && fullData.nodes && fullData.nodes.length <= AUTO_NODE_LABEL_LIMIT;
+    }
+
+    function renderNodeLabelOverlay(nodes) {
+      nodeLabelOverlay.innerHTML = '';
+      if (!shouldShowNodeLabels() || !nodes) return;
+      nodes.forEach(n => {
+        const el = document.createElement('div');
+        el.className = 'cluster-title';
+        el.style.fontSize = '11px';
+        el.style.fontWeight = '500';
+        el.style.padding = '3px 6px';
+        el.style.borderRadius = '8px';
+        el.style.opacity = '0.9';
+        el.textContent = n.label || n.id;
+        nodeLabelOverlay.appendChild(el);
+        n.__labelEl = el;
+      });
+    }
+
     function tickOverlay() {
-      if (!clusterHeaders || clusterHeaders.length === 0) return;
+      overlayFrame++;
+      // throttle node label updates slightly to reduce cost
+      const updateNodeLabels = overlayFrame % 2 === 0;
+
       clusterHeaders.forEach(h => {
         if (!h.el) return;
         const p = graph.graph2ScreenCoords(h.x, h.y, h.z);
@@ -399,28 +406,43 @@ const indexHTML = `<!doctype html>
         h.el.style.left = p.x + 'px';
         h.el.style.top = p.y + 'px';
       });
+
+      if (updateNodeLabels && shouldShowNodeLabels() && fullData && fullData.nodes) {
+        fullData.nodes.forEach(n => {
+          if (!n.__labelEl) return;
+          const p = graph.graph2ScreenCoords(n.x || 0, n.y || 0, n.z || 0);
+          if (!p || isNaN(p.x) || isNaN(p.y) || p.z > 1) {
+            n.__labelEl.style.display = 'none';
+            return;
+          }
+          n.__labelEl.style.display = 'block';
+          n.__labelEl.style.left = p.x + 'px';
+          n.__labelEl.style.top = p.y + 'px';
+        });
+      }
       requestAnimationFrame(tickOverlay);
     }
 
     function applyLayout() {
       if (!fullData || !fullData.nodes) return;
       if (layoutMode !== 'cluster') {
-        graph.d3Force('x', null);
-        graph.d3Force('y', null);
-        graph.d3Force('z', null);
+        // free layout: unpin nodes
+        fullData.nodes.forEach(n => { delete n.fx; delete n.fy; delete n.fz; });
+        graph.graphData(fullData);
         return;
       }
 
+      // clustered layout without d3 dependency: pin nodes near per-type anchors
       const anchors = typeAnchorPositions(payload.node_types || []);
-      const strength = 0.08;
-      graph.d3Force('x', d3.forceX(n => (anchors[n.type] ? anchors[n.type].x : 0)).strength(strength));
-      graph.d3Force('y', d3.forceY(n => (anchors[n.type] ? anchors[n.type].y : 0)).strength(strength));
-      if (typeof d3 !== 'undefined' && typeof d3.forceZ === 'function') {
-        graph.d3Force('z', d3.forceZ(n => (anchors[n.type] ? anchors[n.type].z : 0)).strength(strength));
-      } else {
-        // If forceZ isn't available in the runtime, don't break rendering.
-        graph.d3Force('z', null);
-      }
+      const jitter = 18;
+      fullData.nodes.forEach(n => {
+        const a = anchors[n.type];
+        if (!a) return;
+        n.fx = a.x + (Math.random() * jitter - jitter / 2);
+        n.fy = a.y + (Math.random() * jitter - jitter / 2);
+        n.fz = a.z;
+      });
+      graph.graphData(fullData);
     }
 
     function renderLegend() {
@@ -626,8 +648,7 @@ const indexHTML = `<!doctype html>
       .then(r => r.json())
       .then(data => {
         payload = data;
-        const injected = injectClusterHeaders(data);
-        fullData = { nodes: injected.nodes, links: injected.links };
+        fullData = { nodes: data.nodes, links: data.links };
         fullData.nodes.forEach(n => { nodeById[n.id] = n; });
         assignTypeColors(data.node_types || []);
         document.getElementById('meta').textContent =
@@ -637,7 +658,17 @@ const indexHTML = `<!doctype html>
         graph.graphData(optimizeForRender(fullData.nodes, fullData.links));
         applyLayout();
         document.getElementById('layoutToggle').addEventListener('change', (e) => { layoutMode = e.target.value; applyLayout(); });
-        renderClusterOverlay(injected.nodes.filter(n => n.properties && n.properties.cluster_header));
+        // cluster titles are overlay-only (not graph nodes)
+        const anchors = typeAnchorPositions((data.node_types || []).filter(t => (t || '').toLowerCase() !== 'unknown'));
+        const headers = Object.keys(anchors).map(t => ({
+          id: '__cluster__:' + t,
+          label: clusterTitleForType(t),
+          fx: anchors[t].x,
+          fy: anchors[t].y + 70,
+          fz: anchors[t].z
+        }));
+        renderClusterOverlay(headers);
+        renderNodeLabelOverlay(fullData.nodes);
         document.getElementById('search').addEventListener('input', applyFilters);
         document.getElementById('typeFilter').addEventListener('change', applyFilters);
         document.getElementById('edgeFilter').addEventListener('change', applyFilters);
