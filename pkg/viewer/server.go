@@ -139,12 +139,13 @@ const indexHTML = `<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cold Relay Graph Viewer</title>
   <style>
-    html, body { height: 100%; margin: 0; font-family: Segoe UI, Arial, sans-serif; background: #0b0f16; color: #e6edf3; }
-    #app { display: grid; grid-template-columns: minmax(0, 1fr) 420px; width: 100vw; height: 100vh; }
-    #graph { position: relative; min-width: 0; width: 100%; height: 100%; overflow: hidden; }
+    html, body { height: 100%; margin: 0; overflow: hidden; font-family: Segoe UI, Arial, sans-serif; background: #0b0f16; color: #e6edf3; }
+    /* Flex layout avoids Firefox grid sizing quirks on Linux */
+    #app { display: flex; width: 100vw; height: 100vh; }
+    #graph { position: relative; flex: 1 1 auto; min-width: 0; height: 100%; overflow: hidden; }
     /* Ensure the renderer stays inside the graph container and can't cover the sidebar */
     #graph canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
-    #sidebar { position: relative; z-index: 5; min-width: 420px; border-left: 1px solid #1f2937; background: #111827; padding: 12px; overflow: auto; }
+    #sidebar { position: relative; z-index: 5; flex: 0 0 420px; width: 420px; max-width: 420px; box-sizing: border-box; border-left: 1px solid #1f2937; background: #111827; padding: 12px; overflow: auto; }
     .title { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
     .meta { font-size: 12px; color: #9ca3af; margin-bottom: 12px; }
     .box { border: 1px solid #1f2937; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #0f172a; }
@@ -169,6 +170,17 @@ const indexHTML = `<!doctype html>
         <input id="search" placeholder="Search node label..." />
       </div>
       <div class="row">
+        <select id="labelToggle">
+          <option value="auto">Labels: Auto</option>
+          <option value="on">Labels: On</option>
+          <option value="off">Labels: Off</option>
+        </select>
+        <select id="layoutToggle">
+          <option value="cluster">Layout: Clustered</option>
+          <option value="free">Layout: Free</option>
+        </select>
+      </div>
+      <div class="row">
         <select id="typeFilter"><option value="">All node types</option></select>
         <select id="edgeFilter"><option value="">All edge types</option></select>
       </div>
@@ -183,6 +195,10 @@ const indexHTML = `<!doctype html>
       <div class="box">
         <div class="label">Type</div>
         <div id="selectedType" class="value">-</div>
+      </div>
+      <div class="box">
+        <div class="label">What this is</div>
+        <div id="explain" class="list muted"></div>
       </div>
       <div class="box">
         <div class="label">Identity & Properties</div>
@@ -203,6 +219,8 @@ const indexHTML = `<!doctype html>
     </div>
   </div>
   <script src="https://unpkg.com/3d-force-graph"></script>
+  <script src="https://unpkg.com/d3@7"></script>
+  <script src="https://unpkg.com/three-spritetext"></script>
   <script>
     const baseColors = {
       principal: '#4f46e5',
@@ -234,6 +252,9 @@ const indexHTML = `<!doctype html>
     let nodeById = {};
     const PERF_NODE_LIMIT = 650;
     const PERF_LINK_LIMIT = 1800;
+    const AUTO_LABEL_NODE_LIMIT = 220;
+    let labelsMode = 'auto';
+    let layoutMode = 'cluster';
     const graph = ForceGraph3D()(document.getElementById('graph'))
       .backgroundColor('#0b0f16')
       .nodeLabel(n => n.label + ' (' + n.type + ')')
@@ -247,7 +268,10 @@ const indexHTML = `<!doctype html>
       .cooldownTicks(80)
       .d3AlphaDecay(0.04)
       .d3VelocityDecay(0.35)
-      .onNodeClick(node => focusNode(node));
+      .onNodeClick(node => {
+        if (node && node.properties && node.properties.cluster_header) return;
+        focusNode(node);
+      });
 
     function normalizeRef(ref) {
       if (ref && typeof ref === 'object' && ref.id) return ref.id;
@@ -264,6 +288,111 @@ const indexHTML = `<!doctype html>
           i++;
         }
       });
+    }
+
+    function applyLabels() {
+      const shouldShow =
+        labelsMode === 'on' ? true :
+        labelsMode === 'off' ? false :
+        (fullData && fullData.nodes && fullData.nodes.length <= AUTO_LABEL_NODE_LIMIT);
+
+      graph.nodeThreeObject(node => {
+        const SpriteText = window.SpriteText;
+        const isHeader = !!(node && node.properties && node.properties.cluster_header);
+        if (!isHeader && !shouldShow) return null;
+
+        const s = new SpriteText(node.label || node.id || '');
+        s.color = isHeader ? '#e2e8f0' : '#cbd5e1';
+        s.textHeight = isHeader ? 10 : 4;
+        s.backgroundColor = isHeader ? 'rgba(2, 6, 23, 0.70)' : 'rgba(15, 23, 42, 0.65)';
+        s.padding = isHeader ? 6 : 2;
+        return s;
+      });
+      graph.nodeThreeObjectExtend(true);
+    }
+
+    function typeAnchorPositions(types) {
+      const anchors = {};
+      const cols = 3;
+      const spacingX = 160;
+      const spacingY = 120;
+      types.forEach((t, idx) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        anchors[t] = {
+          x: (col - 1) * spacingX,
+          y: (1 - row) * spacingY,
+          z: 0
+        };
+      });
+      return anchors;
+    }
+
+    function clusterTitleForType(t) {
+      const type = (t || '').toLowerCase();
+      const map = {
+        principal: 'Principals (Users / Computers)',
+        group: 'Groups',
+        service: 'Services & Ports',
+        spn: 'SPNs',
+        share: 'SMB Shares',
+        file: 'Files',
+        secret: 'Secrets',
+        finding: 'Findings',
+        domain: 'Domain',
+        target: 'Targets',
+        trust: 'Trusts',
+        gpo: 'Group Policy (GPO)',
+        directory_object: 'Directory Objects',
+        delegation_target: 'Delegation Targets',
+        delegation_account: 'Delegation Accounts',
+        replication_principal: 'Replication / DCSync Leads',
+        certificate_template: 'AD CS Templates',
+        dns_zone_transfer: 'DNS / AXFR',
+        session_state: 'Session Leads'
+      };
+      return map[type] || (t ? (t[0].toUpperCase() + t.slice(1)) : 'Cluster');
+    }
+
+    function injectClusterHeaders(data) {
+      const types = (data.node_types || []).filter(t => (t || '').toLowerCase() !== 'unknown');
+      const anchors = typeAnchorPositions(types);
+      const headerNodes = [];
+      types.forEach(t => {
+        const a = anchors[t];
+        if (!a) return;
+        headerNodes.push({
+          id: '__cluster__:' + t,
+          label: clusterTitleForType(t),
+          type: '__cluster__',
+          properties: { cluster_header: true, target_type: t },
+          fx: a.x,
+          fy: a.y + 70,
+          fz: a.z
+        });
+      });
+      return {
+        nodes: [...headerNodes, ...(data.nodes || [])],
+        links: (data.links || []),
+        headerIds: new Set(headerNodes.map(n => n.id)),
+        anchors
+      };
+    }
+
+    function applyLayout() {
+      if (!fullData || !fullData.nodes) return;
+      if (layoutMode !== 'cluster') {
+        graph.d3Force('x', null);
+        graph.d3Force('y', null);
+        graph.d3Force('z', null);
+        return;
+      }
+
+      const anchors = typeAnchorPositions(payload.node_types || []);
+      const strength = 0.08;
+      graph.d3Force('x', d3.forceX(n => (anchors[n.type] ? anchors[n.type].x : 0)).strength(strength));
+      graph.d3Force('y', d3.forceY(n => (anchors[n.type] ? anchors[n.type].y : 0)).strength(strength));
+      graph.d3Force('z', d3.forceZ(n => (anchors[n.type] ? anchors[n.type].z : 0)).strength(strength));
     }
 
     function renderLegend() {
@@ -350,6 +479,47 @@ const indexHTML = `<!doctype html>
       });
     }
 
+    function nodeExplanation(node) {
+      const t = (node.type || '').toLowerCase();
+      const label = node.label || node.id || '';
+      const props = node.properties || {};
+      const lines = [];
+      switch (t) {
+        case 'group':
+          lines.push('This is an Active Directory group.');
+          if (props.dn) lines.push('Distinguished Name: ' + props.dn);
+          lines.push('Why it matters: group membership can grant privileges through nested groups and policy assignments.');
+          lines.push('Next: enumerate members, nested groups, and effective privileges of this group.');
+          break;
+        case 'principal':
+          lines.push('This is a principal (user/service/computer identity) in the environment.');
+          if (props.disabled === true) lines.push('Note: account is disabled.');
+          if (props.preauth_not_needed === true) lines.push('Signal: pre-auth not required (AS-REP roast candidate if enabled and user is not preauth).');
+          if (typeof props.spn_count === 'number' && props.spn_count > 0) lines.push('Signal: has SPNs (Kerberoast lead).');
+          lines.push('Next: verify privilege edges (ACL/delegation/session/creds) before calling this a compromise path.');
+          break;
+        case 'service':
+          lines.push('This is a service exposure observed on the target (port open).');
+          lines.push('Why it matters: it increases attack surface and can enable auth paths.');
+          break;
+        case 'share':
+          lines.push('This is an SMB share.');
+          lines.push('Why it matters: readable shares often contain credentials or deployment artifacts.');
+          lines.push('Next: validate read/write permissions and search for secrets.');
+          break;
+        case 'finding':
+          lines.push('This is a derived finding node created from evidence (candidate).');
+          lines.push('Why it matters: it summarizes why something is interesting, plus blockers and next actions.');
+          lines.push('Next: confirm with direct protocol evidence where required.');
+          break;
+        default:
+          lines.push('Graph node: ' + label);
+          lines.push('Type: ' + (node.type || 'unknown'));
+          lines.push('Tip: inspect connected edges for meaning.');
+      }
+      return lines;
+    }
+
     function renderPermissions(node, connected) {
       const out = [];
       const props = node.properties || {};
@@ -399,6 +569,7 @@ const indexHTML = `<!doctype html>
       document.getElementById('selectedType').textContent = node.type || '-';
       document.getElementById('selectedProps').textContent = JSON.stringify(node.properties || {}, null, 2);
       const rels = fullData.links.filter(l => normalizeRef(l.source) === node.id || normalizeRef(l.target) === node.id);
+      renderList('explain', nodeExplanation(node), 'No explanation available.');
       const relText = rels.map(r => {
         const s = normalizeRef(r.source);
         const t = normalizeRef(r.target);
@@ -427,14 +598,19 @@ const indexHTML = `<!doctype html>
       .then(r => r.json())
       .then(data => {
         payload = data;
-        fullData = { nodes: data.nodes, links: data.links };
-        data.nodes.forEach(n => { nodeById[n.id] = n; });
+        const injected = injectClusterHeaders(data);
+        fullData = { nodes: injected.nodes, links: injected.links };
+        fullData.nodes.forEach(n => { nodeById[n.id] = n; });
         assignTypeColors(data.node_types || []);
         document.getElementById('meta').textContent =
           'Domain: ' + (data.meta.domain || '-') + ' | Nodes: ' + data.meta.total_nodes + ' | Links: ' + data.meta.total_links;
         renderFilters();
         renderLegend();
         graph.graphData(optimizeForRender(fullData.nodes, fullData.links));
+        applyLabels();
+        applyLayout();
+        document.getElementById('labelToggle').addEventListener('change', (e) => { labelsMode = e.target.value; applyLabels(); });
+        document.getElementById('layoutToggle').addEventListener('change', (e) => { layoutMode = e.target.value; applyLayout(); });
         document.getElementById('search').addEventListener('input', applyFilters);
         document.getElementById('typeFilter').addEventListener('change', applyFilters);
         document.getElementById('edgeFilter').addEventListener('change', applyFilters);
