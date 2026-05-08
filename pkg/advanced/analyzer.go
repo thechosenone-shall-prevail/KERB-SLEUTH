@@ -467,6 +467,7 @@ func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 	shares, err := analyzer.EnumerateShares()
 	if err != nil {
 		log.Printf("[!] SMB share enumeration failed: %v", err)
+		log.Printf("[!] SMB diagnosis: %s", ExplainSMBError(err))
 	} else {
 		log.Printf("[+] Enumerated %d SMB shares:", len(shares))
 		for _, share := range shares {
@@ -496,6 +497,10 @@ func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 			if isJuicy {
 				log.Printf("[*] Juicy share detected: %s. Starting deep file hunt...", share)
 				findings, err := analyzer.DeepFileHunt(share)
+				if err != nil {
+					log.Printf("[!] Deep file hunt failed on share %s: %v", share, err)
+					log.Printf("[!] SMB diagnosis (%s): %s", share, ExplainSMBError(err))
+				}
 				if err == nil && len(findings) > 0 {
 					log.Printf("[+] Found %d sensitive file(s) in %s!", len(findings), share)
 					allFindings = append(allFindings, findings...)
@@ -511,6 +516,7 @@ func (aa *AdvancedAnalyzer) RunSMBAnalysis() error {
 	gppResults, err := analyzer.ScanGPP()
 	if err != nil {
 		log.Printf("[!] GPP scanning failed: %v", err)
+		log.Printf("[!] SMB diagnosis (SYSVOL): %s", ExplainSMBError(err))
 	} else if len(gppResults) > 0 {
 		log.Printf("[+] Found %d GPP password(s) in SYSVOL!", len(gppResults))
 		aa.Results["gpp"] = gppResults
@@ -549,6 +555,7 @@ func (aa *AdvancedAnalyzer) RunFullAnalysis() error {
 	for _, a := range analyses {
 		if err := a.fn(); err != nil {
 			log.Printf("[x] %s analysis failed: %v", a.name, err)
+			log.Printf("[x] %s diagnosis: %s", a.name, ExplainProtocolError(a.name, err))
 		}
 	}
 

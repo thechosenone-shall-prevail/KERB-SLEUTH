@@ -92,5 +92,15 @@ func uniqueStrings(input []string) []string {
 
 // ReportSuccess prints a high-contrast success message
 func ReportSuccess(user, pass, service string) {
-	log.Printf("%s[!] SUCCESSFUL CREDENTIAL REUSE: %s : %s ON %s%s", util.Red, user, pass, service, util.Reset)
+	log.Printf("%s[!] SUCCESSFUL CREDENTIAL REUSE: %s : %s ON %s%s", util.Red, user, maskSecret(pass), service, util.Reset)
+}
+
+func maskSecret(secret string) string {
+	if secret == "" {
+		return "<empty>"
+	}
+	if len(secret) <= 2 {
+		return strings.Repeat("*", len(secret))
+	}
+	return secret[:1] + strings.Repeat("*", len(secret)-2) + secret[len(secret)-1:]
 }

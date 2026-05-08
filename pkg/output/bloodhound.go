@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/reasoning"
@@ -40,10 +42,15 @@ type BloodHoundGraph struct {
 
 // WriteBloodHoundJSON exports the attack graph to BloodHound-compatible JSON format
 func WriteBloodHoundJSON(path string, results Results) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("bloodhound JSON path cannot be empty")
+	}
 	// Ensure directory exists
-	dir := path[:len(path)-len(path[len(path)-1:])]
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %v", err)
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory: %v", err)
+		}
 	}
 
 	// Convert attack graph to BloodHound format
@@ -112,10 +119,15 @@ func convertToBloodHoundGraph(results Results) (*BloodHoundGraph, error) {
 
 // WriteBloodHoundCSV exports the attack graph to BloodHound CSV format (nodes and edges)
 func WriteBloodHoundCSV(path string, results Results) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("bloodhound CSV path cannot be empty")
+	}
 	// Ensure directory exists
-	dir := path[:len(path)-len(path[len(path)-1:])]
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %v", err)
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory: %v", err)
+		}
 	}
 
 	if results.AttackGraph == nil {

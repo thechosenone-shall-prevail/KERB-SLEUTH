@@ -103,25 +103,49 @@ func AnnotateCandidates(candidates []krb.Candidate) []krb.Candidate {
 					[]string{"Validate ticket request success and encryption type before prioritizing."})
 			}
 		case "HVT":
-			krb.SetCandidateValidation(&out[i], krb.StatusValidated,
+			krb.SetCandidateValidation(&out[i], krb.StatusLikely,
 				[]string{"LDAP group membership marks this principal as privileged."},
 				[]string{"No current credential, session, or control edge proves access to this principal."},
-				[]string{"Look for reachable credentials, sessions, ACL writes, or delegation edges into this principal."})
+				[]string{
+					"Look for reachable credentials, sessions, ACL writes, or delegation edges into this principal.",
+					"Double-verify: privileged group membership does not prove current compromise path.",
+				})
 		case "LOOT":
-			krb.SetCandidateValidation(&out[i], krb.StatusValidated,
-				[]string{"Plaintext secret-like material was observed in collected data."}, nil,
-				[]string{"Manually verify the secret and test reuse with OPSEC controls."})
+			krb.SetCandidateValidation(&out[i], krb.StatusLikely,
+				[]string{"Secret-like material was observed in collected data."},
+				[]string{"Pattern-based extraction can include false positives without full context."},
+				[]string{
+					"Manually verify the secret and test reuse with OPSEC controls.",
+					"Double-verify: confirm source file/attribute context before treating as valid credential.",
+				})
 		case "RECON":
-			krb.SetCandidateValidation(&out[i], krb.StatusValidated,
-				[]string{"The referenced resource was reachable during collection."}, nil,
-				[]string{"Review collected files and connect the resource to principals or credentials."})
+			krb.SetCandidateValidation(&out[i], krb.StatusLikely,
+				[]string{"The referenced resource was reachable during collection."},
+				[]string{"Reachability alone does not prove credential abuse or privilege escalation."},
+				[]string{
+					"Review collected files and connect the resource to principals or credentials.",
+					"Double-verify: validate exploitation path with a protocol-specific control step.",
+				})
 		default:
 			krb.SetCandidateValidation(&out[i], krb.StatusLikely,
 				[]string{"Heuristic finding generated from collected directory or network context."}, nil,
 				[]string{"Validate with a protocol-specific check before action."})
 		}
+		addHeuristicGuardrail(&out[i])
 	}
 	return out
+}
+
+func addHeuristicGuardrail(candidate *krb.Candidate) {
+	if candidate == nil {
+		return
+	}
+	if candidate.Validation == krb.StatusLikely || candidate.Validation == krb.StatusTheoretical {
+		candidate.Blockers = appendUnique(candidate.Blockers,
+			"Heuristic assessment may be incomplete under partial visibility; verify independently before action.")
+		candidate.NextActions = appendUnique(candidate.NextActions,
+			"Double-verify with direct protocol evidence (auth success, ticket capture, share mount, or ACL proof).")
+	}
 }
 
 func BuildGraph(ctx BuildContext, users []ingest.User, candidates []krb.Candidate, advResults map[string]interface{}) Graph {

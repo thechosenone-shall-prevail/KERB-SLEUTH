@@ -74,6 +74,8 @@ Write JSON, CSV, and Sigma rules:
 | `-p <pass>` | Password for authentication. |
 | `-d <domain>` | Domain name. If omitted, Cold Relay attempts RootDSE-based detection. |
 | `--mode <passive|aggressive>` | `passive` runs enumeration and reasoning. `aggressive` runs full analysis. |
+| `--graph-viewer <results.json>` | Launch local 3D graph viewer from an existing results file (scan not required). |
+| `--graph-port <port>` | Port for local graph viewer. Default: `7788`. |
 
 ### Output
 
@@ -81,6 +83,9 @@ Write JSON, CSV, and Sigma rules:
 |------|-------------|
 | `-o <file>` | JSON output path. Default: `results.json`. |
 | `--csv <file>` | Optional CSV candidate export. |
+| `--bloodhound-json <file>` | Optional BloodHound-style JSON graph export. |
+| `--bloodhound-csv <file>` | Optional BloodHound-style CSV export base path. |
+| `--run-store-dir <dir>` | Optional directory for persisted run metadata artifacts. |
 | `--json` | Print JSON to stdout only. |
 | `--siem` | Generate Sigma detection rules. |
 
@@ -101,6 +106,22 @@ Write JSON, CSV, and Sigma rules:
 |------|-------------|
 | `-w <wordlist>` | In aggressive mode, extract and attempt cracking candidate hashes with the supplied wordlist. |
 | `--audit` | Pass audit mode into advanced analyzers where supported. |
+| `--enable-spray` | Explicitly enable credential spray workflow. Disabled by default. |
+| `--i-understand-spray-risk` | Required with `--enable-spray` as an explicit safety acknowledgment. |
+| `--spray-max-users <n>` | Maximum number of account attempts during spray workflow. Default: `25`. |
+| `--spray-delay-ms <n>` | Delay in milliseconds between spray attempts. Default: `750`. |
+
+Credential spraying is intentionally opt-in and gated by explicit acknowledgment.
+
+### 3D Graph Viewer
+
+Launch a local interactive graph viewer (Notion/Obsidian-style exploration) from saved results:
+
+```bash
+./cold-relay --graph-viewer results.json --graph-port 7788
+```
+
+Then open `http://127.0.0.1:7788` in your browser.
 
 ## Validation Language
 

@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"encoding/base64"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -66,7 +67,7 @@ func NewSMBAnalyzer(target, username, password, domain string) *SMBAnalyzer {
 func (sa *SMBAnalyzer) createSession() (*smb2.Session, *net.Conn, error) {
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:445", sa.Target), 5*time.Second)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("tcp connect %s:445 failed: %w", sa.Target, err)
 	}
 
 	d := &smb2.Dialer{
@@ -80,7 +81,7 @@ func (sa *SMBAnalyzer) createSession() (*smb2.Session, *net.Conn, error) {
 	session, err := d.Dial(conn)
 	if err != nil {
 		conn.Close()
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("SMB session negotiation/authentication failed for %s\\%s: %w", sa.Domain, sa.Username, err)
 	}
 
 	return session, &conn, nil
@@ -97,7 +98,7 @@ func (sa *SMBAnalyzer) EnumerateShares() ([]string, error) {
 
 	shares, err := session.ListSharenames()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list share names failed: %w", err)
 	}
 
 	return shares, nil
@@ -114,7 +115,7 @@ func (sa *SMBAnalyzer) DeepFileHunt(share string) ([]FileFinding, error) {
 
 	fs, err := session.Mount(share)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("mount share %q failed: %w", share, err)
 	}
 	defer fs.Umount()
 
@@ -126,6 +127,7 @@ func (sa *SMBAnalyzer) DeepFileHunt(share string) ([]FileFinding, error) {
 func (sa *SMBAnalyzer) walkFiles(fs *smb2.Share, share, path string, findings *[]FileFinding) error {
 	files, err := fs.ReadDir(path)
 	if err != nil {
+		log.Printf("[!] SMB read denied for %s:%s (%s)", share, path, ExplainSMBError(err))
 		return nil // Skip shares we can't read
 	}
 
@@ -328,18 +330,21 @@ func uniqueStrings(input []string) []string {
 func (s *SMBAnalyzer) DownloadFile(fs *smb2.Share, remotePath, localPath string) error {
 	f, err := fs.Open(remotePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("open remote file %q failed: %w", remotePath, err)
 	}
 	defer f.Close()
 
 	local, err := os.Create(localPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("create local file %q failed: %w", localPath, err)
 	}
 	defer local.Close()
 
 	_, err = io.Copy(local, f)
-	return err
+	if err != nil {
+		return fmt.Errorf("copy file data %q -> %q failed: %w", remotePath, localPath, err)
+	}
+	return nil
 }
 
 // CheckAdminAccess checks if the user has administrative access (can access ADMIN$ or C$)
@@ -374,7 +379,7 @@ func (sa *SMBAnalyzer) ScanGPP() ([]GPPSimpleResult, error) {
 
 	fs, err := session.Mount("SYSVOL")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("mount SYSVOL failed: %w", err)
 	}
 	defer fs.Umount()
 
@@ -492,4 +497,30 @@ func decryptGPP(cpassword string) (string, error) {
 	}
 
 	return string(decrypted), nil
+}
+
+// ExplainSMBError returns a human-oriented explanation for SMB failures.
+func ExplainSMBError(err error) string {
+	if err == nil {
+		return "no error"
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case errors.Is(err, os.ErrPermission) || strings.Contains(msg, "access is denied") || strings.Contains(msg, "access denied") || strings.Contains(msg, "status_access_denied"):
+		return "access denied (credentials valid but missing share/path permissions)"
+	case strings.Contains(msg, "logon failure") || strings.Contains(msg, "status_logon_failure") || strings.Contains(msg, "wrong password"):
+		return "authentication failed (username/password/domain mismatch)"
+	case strings.Contains(msg, "dial tcp") && strings.Contains(msg, "timeout"):
+		return "network timeout reaching 445/tcp (host down, firewall, or packet filtering)"
+	case strings.Contains(msg, "connection refused"):
+		return "445/tcp refused (SMB service unavailable or blocked)"
+	case strings.Contains(msg, "host is down") || strings.Contains(msg, "no route to host"):
+		return "target unreachable at network layer"
+	case strings.Contains(msg, "status_bad_network_name") || strings.Contains(msg, "network name cannot be found"):
+		return "share does not exist or is hidden/inaccessible"
+	case strings.Contains(msg, "signing") || strings.Contains(msg, "negotiate"):
+		return "SMB negotiate/signing mismatch with target policy"
+	default:
+		return "unclassified SMB error (inspect raw message)"
+	}
 }

@@ -16,8 +16,11 @@ type ReportData struct {
 	Domain           DomainInfo
 	Summary          Summary
 	Candidates       []CandidateReport
+	ConfirmedCandidates []CandidateReport
+	ReviewCandidates    []CandidateReport
 	AttackPaths      []AttackPathReport
 	RiskInsights     []string
+	HeuristicAdvisories []string
 	ValidationCounts map[string]int
 }
 
@@ -104,6 +107,15 @@ func prepareReportData(results Results) ReportData {
 			SPNs:           c.SPNs,
 		}
 		data.Candidates = append(data.Candidates, candidate)
+		if c.Validation == "validated" {
+			data.ConfirmedCandidates = append(data.ConfirmedCandidates, candidate)
+		} else {
+			data.ReviewCandidates = append(data.ReviewCandidates, candidate)
+		}
+		if c.Validation == "likely" || c.Validation == "theoretical" {
+			data.HeuristicAdvisories = append(data.HeuristicAdvisories,
+				fmt.Sprintf("%s (%s): heuristic-confidence finding, double-verify before operational decisions.", c.SamAccountName, c.Type))
+		}
 
 		// Count validation statuses
 		if c.Validation != "" {
@@ -142,6 +154,18 @@ const htmlTemplate = `<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cold Relay Security Assessment Report</title>
     <style>
+        :root {
+            --bg: #f4f6f9;
+            --surface: #ffffff;
+            --surface-alt: #f8fafc;
+            --text: #111827;
+            --muted: #6b7280;
+            --border: #dbe2ea;
+            --accent: #2563eb;
+            --ok: #0f766e;
+            --warn: #b45309;
+            --risk: #b91c1c;
+        }
         * {
             margin: 0;
             padding: 0;
@@ -149,10 +173,10 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
             line-height: 1.5;
-            color: #d4d4d4;
-            background-color: #0d0d0d;
+            color: var(--text);
+            background-color: var(--bg);
             font-size: 14px;
         }
 
@@ -165,20 +189,20 @@ const htmlTemplate = `<!DOCTYPE html>
         .header {
             margin-bottom: 40px;
             padding-bottom: 20px;
-            border-bottom: 1px solid #262626;
+            border-bottom: 1px solid var(--border);
         }
 
         .header h1 {
             font-size: 28px;
             font-weight: 600;
-            color: #e5e5e5;
+            color: var(--text);
             margin-bottom: 6px;
             letter-spacing: -0.3px;
         }
 
         .header .subtitle {
             font-size: 12px;
-            color: #737373;
+            color: var(--muted);
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 1px;
@@ -187,7 +211,7 @@ const htmlTemplate = `<!DOCTYPE html>
         .header .meta {
             margin-top: 16px;
             font-size: 12px;
-            color: #737373;
+            color: var(--muted);
             display: flex;
             gap: 28px;
         }
@@ -199,7 +223,7 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .header .meta strong {
-            color: #d4d4d4;
+            color: var(--text);
             font-weight: 500;
         }
 
@@ -208,7 +232,7 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .section h2 {
-            color: #e5e5e5;
+            color: var(--text);
             font-size: 16px;
             font-weight: 600;
             margin-bottom: 16px;
@@ -223,14 +247,15 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .summary-card {
-            background: #171717;
+            background: var(--surface);
             padding: 20px;
-            border: 1px solid #262626;
+            border: 1px solid var(--border);
+            border-radius: 8px;
         }
 
         .summary-card h3 {
             font-size: 11px;
-            color: #737373;
+            color: var(--muted);
             margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -240,14 +265,15 @@ const htmlTemplate = `<!DOCTYPE html>
         .summary-card .value {
             font-size: 32px;
             font-weight: 600;
-            color: #e5e5e5;
+            color: var(--text);
             letter-spacing: -0.8px;
         }
 
         .domain-info {
-            background: #171717;
+            background: var(--surface);
             padding: 20px;
-            border: 1px solid #262626;
+            border: 1px solid var(--border);
+            border-radius: 8px;
             margin-bottom: 20px;
         }
 
@@ -258,7 +284,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
         .domain-info td {
             padding: 10px 0;
-            border-bottom: 1px solid #262626;
+            border-bottom: 1px solid var(--border);
             font-size: 13px;
         }
 
@@ -267,13 +293,13 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .domain-info td:first-child {
-            color: #737373;
+            color: var(--muted);
             width: 180px;
             font-weight: 500;
         }
 
         .domain-info td:last-child {
-            color: #d4d4d4;
+            color: var(--text);
             font-weight: 500;
         }
 
@@ -282,20 +308,22 @@ const htmlTemplate = `<!DOCTYPE html>
             border-collapse: collapse;
             margin-bottom: 20px;
             font-size: 13px;
-            background: #171717;
-            border: 1px solid #262626;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
         .findings-table th,
         .findings-table td {
             padding: 12px 14px;
             text-align: left;
-            border-bottom: 1px solid #262626;
+            border-bottom: 1px solid var(--border);
         }
 
         .findings-table th {
-            background-color: #1f1f1f;
-            color: #a3a3a3;
+            background-color: var(--surface-alt);
+            color: var(--muted);
             font-weight: 500;
             font-size: 11px;
             text-transform: uppercase;
@@ -303,7 +331,7 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .findings-table td {
-            color: #d4d4d4;
+            color: var(--text);
         }
 
         .findings-table tr:last-child td {
@@ -320,23 +348,23 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .badge-validated {
-            color: #4ade80;
+            color: var(--ok);
         }
 
         .badge-likely {
-            color: #fbbf24;
+            color: var(--warn);
         }
 
         .badge-theoretical {
-            color: #a78bfa;
+            color: #7c3aed;
         }
 
         .badge-blocked {
-            color: #f87171;
+            color: var(--risk);
         }
 
         .badge-insufficient {
-            color: #9ca3af;
+            color: var(--muted);
         }
 
         .severity-critical {
@@ -365,14 +393,15 @@ const htmlTemplate = `<!DOCTYPE html>
         }
 
         .attack-path {
-            background: #171717;
-            border: 1px solid #262626;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
             padding: 20px;
             margin-bottom: 12px;
         }
 
         .attack-path h4 {
-            color: #e5e5e5;
+            color: var(--text);
             margin-bottom: 12px;
             font-size: 14px;
             font-weight: 600;
@@ -387,7 +416,7 @@ const htmlTemplate = `<!DOCTYPE html>
         .evidence-list li,
         .blocker-list li {
             margin-bottom: 6px;
-            color: #a3a3a3;
+            color: #334155;
             font-size: 13px;
             padding-left: 16px;
             position: relative;
@@ -398,17 +427,18 @@ const htmlTemplate = `<!DOCTYPE html>
             content: "•";
             position: absolute;
             left: 0;
-            color: #525252;
+            color: #94a3b8;
         }
 
         .risk-insights {
-            background: #171717;
-            border: 1px solid #262626;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
             padding: 20px;
         }
 
         .risk-insights h3 {
-            color: #e5e5e5;
+            color: var(--text);
             margin-bottom: 12px;
             font-size: 14px;
             font-weight: 600;
@@ -420,7 +450,7 @@ const htmlTemplate = `<!DOCTYPE html>
 
         .risk-insights li {
             margin-bottom: 8px;
-            color: #d4d4d4;
+            color: var(--text);
             font-size: 13px;
             padding-left: 16px;
             position: relative;
@@ -430,15 +460,15 @@ const htmlTemplate = `<!DOCTYPE html>
             content: "•";
             position: absolute;
             left: 0;
-            color: #f87171;
+            color: var(--accent);
         }
 
         .footer {
             margin-top: 48px;
             padding-top: 20px;
-            border-top: 1px solid #262626;
+            border-top: 1px solid var(--border);
             text-align: center;
-            color: #737373;
+            color: var(--muted);
             font-size: 12px;
         }
 
@@ -446,48 +476,7 @@ const htmlTemplate = `<!DOCTYPE html>
             margin-bottom: 6px;
         }
 
-        @media print {
-            body {
-                background-color: #fff;
-                color: #171717;
-            }
-            .container {
-                padding: 24px;
-            }
-            .header h1 {
-                color: #171717;
-            }
-            .header .subtitle {
-                color: #737373;
-            }
-            .header .meta strong {
-                color: #171717;
-            }
-            .section h2 {
-                color: #171717;
-            }
-            .summary-card,
-            .domain-info,
-            .attack-path,
-            .risk-insights {
-                background: #f5f5f5;
-                border-color: #e5e5e5;
-            }
-            .summary-card .value,
-            .domain-info td:last-child,
-            .attack-path h4,
-            .risk-insights h3,
-            .risk-insights li {
-                color: #171717;
-            }
-            .findings-table th {
-                background-color: #e5e5e5;
-                color: #525252;
-            }
-            .findings-table td {
-                color: #404040;
-            }
-        }
+        @media print { .container { padding: 20px; } }
     </style>
 </head>
 <body>
@@ -582,9 +571,24 @@ const htmlTemplate = `<!DOCTYPE html>
         </div>
         {{end}}
 
+        {{if .HeuristicAdvisories}}
+        <div class="section">
+            <h2>Double-Verify Advisories</h2>
+            <div class="risk-insights">
+                <h3>Heuristic Findings Requiring Confirmation</h3>
+                <ul>
+                    {{range .HeuristicAdvisories}}
+                    <li>{{.}}</li>
+                    {{end}}
+                </ul>
+            </div>
+        </div>
+        {{end}}
+
         <!-- Detailed Findings -->
         <div class="section">
-            <h2>Detailed Findings</h2>
+            <h2>Confirmed Findings (Observed Evidence)</h2>
+            {{if .ConfirmedCandidates}}
             <table class="findings-table">
                 <thead>
                     <tr>
@@ -599,7 +603,7 @@ const htmlTemplate = `<!DOCTYPE html>
                     </tr>
                 </thead>
                 <tbody>
-                    {{range .Candidates}}
+                    {{range .ConfirmedCandidates}}
                     <tr>
                         <td><strong>{{.SamAccountName}}</strong></td>
                         <td>{{.Type}}</td>
@@ -613,6 +617,45 @@ const htmlTemplate = `<!DOCTYPE html>
                     {{end}}
                 </tbody>
             </table>
+            {{else}}
+            <div class="risk-insights"><ul><li>No fully confirmed findings in this run.</li></ul></div>
+            {{end}}
+        </div>
+
+        <div class="section">
+            <h2>Needs Verification (Heuristic / Partial Evidence)</h2>
+            {{if .ReviewCandidates}}
+            <table class="findings-table">
+                <thead>
+                    <tr>
+                        <th>Account</th>
+                        <th>Type</th>
+                        <th>Score</th>
+                        <th>Severity</th>
+                        <th>Validation</th>
+                        <th>Evidence</th>
+                        <th>Blockers</th>
+                        <th>Next Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .ReviewCandidates}}
+                    <tr>
+                        <td><strong>{{.SamAccountName}}</strong></td>
+                        <td>{{.Type}}</td>
+                        <td>{{.Score}}</td>
+                        <td><span class="badge severity-{{.Severity | toLower}}">{{.Severity}}</span></td>
+                        <td><span class="badge badge-{{.Validation | toLower}}">{{.Validation}}</span></td>
+                        <td>{{range .Evidence}}{{.}}<br>{{end}}</td>
+                        <td>{{range .Blockers}}{{.}}<br>{{end}}</td>
+                        <td>{{range .NextActions}}{{.}}<br>{{end}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <div class="risk-insights"><ul><li>No heuristic findings requiring additional verification.</li></ul></div>
+            {{end}}
         </div>
 
         <!-- Attack Paths -->

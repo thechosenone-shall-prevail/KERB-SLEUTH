@@ -17,9 +17,11 @@ import (
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/output"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/platform"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/reasoning"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/triage"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/util"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/viewer"
 )
 
 func connectWithFallback(base krb.ConnectOptions, fallback bool) (*krb.LDAPClient, error) {
@@ -53,6 +55,11 @@ func main() {
 	csvOut := flag.String("csv", "", "Optional CSV output file")
 	jsonOnly := flag.Bool("json", false, "Output JSON to stdout only")
 	reportOut := flag.String("report", "", "Generate HTML report (e.g., report.html)")
+	graphViewer := flag.String("graph-viewer", "", "Launch local 3D graph viewer from an existing results JSON file")
+	graphPort := flag.Int("graph-port", 7788, "Port for the local 3D graph viewer")
+	bloodhoundJSON := flag.String("bloodhound-json", "", "Optional BloodHound JSON export path")
+	bloodhoundCSV := flag.String("bloodhound-csv", "", "Optional BloodHound CSV export base path")
+	runStoreDir := flag.String("run-store-dir", "", "Optional directory to persist run metadata for platform workflows")
 
 	// Legacy/advanced flags (still available for power users)
 	ldaps := flag.Bool("ldaps", false, "Use LDAPS (port 636)")
@@ -66,8 +73,32 @@ func main() {
 	crackWordlist := flag.String("w", "", "(Advanced) Path to wordlist for cracking")
 	audit := flag.Bool("audit", false, "(Advanced) Run in audit mode")
 	siem := flag.Bool("siem", false, "(Advanced) Generate SIEM detection rules")
+	enableSpray := flag.Bool("enable-spray", false, "(Advanced) Explicitly enable credential spray workflow")
+	sprayRiskAck := flag.Bool("i-understand-spray-risk", false, "(Advanced) Required confirmation with --enable-spray")
+	sprayMaxUsers := flag.Int("spray-max-users", 25, "(Advanced) Max user accounts tested during spray phase")
+	sprayDelayMS := flag.Int("spray-delay-ms", 750, "(Advanced) Delay in milliseconds between spray attempts")
 
 	flag.Parse()
+
+	if *graphViewer != "" {
+		if *graphPort < 1 || *graphPort > 65535 {
+			log.Fatal("[x] --graph-port must be between 1 and 65535")
+		}
+		if err := viewer.Serve(*graphViewer, *graphPort); err != nil {
+			log.Fatalf("[x] Graph viewer failed: %v", err)
+		}
+		return
+	}
+
+	if *enableSpray && !*sprayRiskAck {
+		log.Fatal("[x] --enable-spray requires --i-understand-spray-risk")
+	}
+	if *sprayMaxUsers < 1 {
+		log.Fatal("[x] --spray-max-users must be greater than zero")
+	}
+	if *sprayDelayMS < 0 {
+		log.Fatal("[x] --spray-delay-ms cannot be negative")
+	}
 
 	// Positional target support
 	if *target == "" && flag.NArg() > 0 {
@@ -348,31 +379,66 @@ func main() {
 		}
 	}
 
-	if len(allFoundPasswords) > 0 {
-		log.Printf("%s[*] Starting Offensive Credential Spray & Mutation...%s", util.Cyan, util.Reset)
+	if len(allFoundPasswords) > 0 && *enableSpray {
+		log.Printf("%s[*] Starting explicit credential spray workflow...%s", util.Cyan, util.Reset)
+		sprayedUsers := 0
 		for _, rawPass := range allFoundPasswords {
 			variants := attack.MutatePassword(rawPass)
 			for _, v := range variants {
 				// Test against discovered users
 				for _, u := range users {
+					if sprayedUsers >= *sprayMaxUsers {
+						break
+					}
 					// To avoid excessive noise, we only test against users with high scores or service accounts
 					if u.SamAccountName != "" && (strings.HasPrefix(u.SamAccountName, "svc") || strings.Contains(u.SamAccountName, "admin")) {
-						results := attack.SprayTest(*target, u.SamAccountName, v, *domain)
-						if len(results) > 0 {
-							for svc := range results {
+						sprayResults := attack.SprayTest(*target, u.SamAccountName, v, *domain)
+						sprayedUsers++
+						if len(sprayResults) > 0 {
+							for svc := range sprayResults {
 								if svc == "ldap_bind_ok" { // Confirmed valid bind
 									attack.ReportSuccess(u.SamAccountName, v, svc)
 								}
 							}
 						}
+						if *sprayDelayMS > 0 {
+							time.Sleep(time.Duration(*sprayDelayMS) * time.Millisecond)
+						}
 					}
 				}
+				if sprayedUsers >= *sprayMaxUsers {
+					break
+				}
+			}
+			if sprayedUsers >= *sprayMaxUsers {
+				break
 			}
 		}
+		log.Printf("[*] Credential spray workflow complete. Tested %d candidate account attempts.", sprayedUsers)
+	} else if len(allFoundPasswords) > 0 {
+		log.Printf("[*] Credentials discovered but spray is disabled. Use --enable-spray with --i-understand-spray-risk to opt in.")
 	}
 
 	// ── output ───────────────────────────────────────────────────────────
 	writeResults(results, all, cfg, *outFile, *csvOut, *siem, *jsonOnly, *reportOut)
+
+	if *bloodhoundJSON != "" {
+		if err := output.WriteBloodHoundJSON(*bloodhoundJSON, results); err != nil {
+			log.Printf("[x] Failed to write BloodHound JSON: %v", err)
+		}
+	}
+	if *bloodhoundCSV != "" {
+		if err := output.WriteBloodHoundCSV(*bloodhoundCSV, results); err != nil {
+			log.Printf("[x] Failed to write BloodHound CSV: %v", err)
+		}
+	}
+
+	if *runStoreDir != "" {
+		store := platform.NewFileRunStore(*runStoreDir)
+		if err := store.Save(platform.FromResults(results, *target, *mode)); err != nil {
+			log.Printf("[x] Failed to persist run metadata: %v", err)
+		}
+	}
 
 	log.Printf("%s[+] Results → %s%s", util.Green, *outFile, util.Reset)
 	log.Printf("%s[+] Done: %d candidates (%d Kerberos / %d Recon / %d HVT)%s",
