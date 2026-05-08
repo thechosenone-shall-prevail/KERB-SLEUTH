@@ -365,5 +365,13 @@ func (aa *AdvancedAnalyzer) RunACLAnalysis() error {
 		aa.Results = make(map[string]interface{})
 	}
 	aa.Results["acl_analysis"] = results
+
+	ntsdEdges, err := aa.EnumerateNTSecurityDescriptorEdges()
+	if err != nil {
+		log.Printf("[!] nTSecurityDescriptor parsing failed: %v", err)
+	} else {
+		log.Printf("[+] Extracted %d ACL control edges from nTSecurityDescriptor", len(ntsdEdges))
+		aa.Results["acl_control_edges"] = ntsdEdges
+	}
 	return nil
 }

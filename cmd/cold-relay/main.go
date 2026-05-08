@@ -14,6 +14,7 @@ import (
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/advanced"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/attack"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/cracker"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/controlplane"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/output"
@@ -303,6 +304,8 @@ func main() {
 		Services:    services,
 	}, users, results.Candidates, advResults)
 	results.AttackGraph = &graph
+	cp := controlplane.BuildFromReasoning(results.AttackGraph, advResults)
+	results.ControlPlane = &cp
 
 	// Update summary with insights
 	results.Summary.ASREPCandidates = 0

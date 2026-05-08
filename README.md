@@ -21,6 +21,9 @@ Cold Relay records those traces.
 - Analyzes trusts, DNS zone transfer exposure, LAPS and gMSA objects, GPO containers, session indicators, privileged objects, RBCD, S4U, DCSync-class rights, and PKINIT/AD CS templates.
 - Builds deterministic candidate metadata with validation status, evidence, blockers, and next actions.
 - Builds an offline `attack_graph` connecting principals, groups, SPNs, services, shares, files, secrets, sessions, ACL objects, trusts, delegation edges, certificate templates, and replication-right findings.
+- Builds a `control_plane` model that normalizes rights into operator-safe states: `proven_true`, `proven_false`, `unknown`, and `error`.
+- Parses `nTSecurityDescriptor` DACL ACEs to emit evidence-backed ACL control rights such as `GenericWrite`, `WriteDacl`, `WriteOwner`, `GenericAll`, and DCSync-related rights.
+- Reports explicit coverage gaps when visibility is missing instead of silently inferring certainty.
 - Writes JSON, CSV, and optional Sigma detection rules.
 
 ## Installation
@@ -188,6 +191,11 @@ High-level structure:
     "attack_paths": [],
     "summary": {}
   },
+  "control_plane": {
+    "nodes": [],
+    "edges": [],
+    "coverage": []
+  },
   "advanced": {}
 }
 ```
@@ -322,6 +330,13 @@ KDC resolution order:
 - S4U delegation analysis.
 - DCSync-class extended-right detection where readable.
 - Exploitation-path reporting with validation caveats.
+- `nTSecurityDescriptor` parsing for direct ACL right extraction from DACL ACEs.
+
+### ACL Control Plane
+
+- Normalizes graph relationships into rights-centric control edges.
+- Adds ACL edges from parsed security descriptors (`acl_control_edges`) into the output control plane.
+- Marks uncertain areas as explicit coverage gaps with next verification actions.
 
 ### Infrastructure
 

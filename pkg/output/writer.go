@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/advanced"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/controlplane"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/reasoning"
@@ -24,6 +25,7 @@ type Results struct {
 	Candidates    []krb.Candidate  `json:"candidates"`
 	RiskInsights  []string         `json:"risk_insights,omitempty"`
 	AttackGraph   *reasoning.Graph `json:"attack_graph,omitempty"`
+	ControlPlane  *controlplane.Graph `json:"control_plane,omitempty"`
 	Users         []ingest.User    `json:"users"`
 	Advanced      AdvancedResults  `json:"advanced,omitempty"`
 }
