@@ -140,9 +140,11 @@ const indexHTML = `<!doctype html>
   <title>Cold Relay Graph Viewer</title>
   <style>
     html, body { height: 100%; margin: 0; font-family: Segoe UI, Arial, sans-serif; background: #0b0f16; color: #e6edf3; }
-    #app { display: grid; grid-template-columns: 1fr 420px; height: 100%; }
-    #graph { width: 100%; height: 100%; }
-    #sidebar { border-left: 1px solid #1f2937; background: #111827; padding: 12px; overflow: auto; }
+    #app { display: grid; grid-template-columns: minmax(0, 1fr) 420px; width: 100vw; height: 100vh; }
+    #graph { position: relative; min-width: 0; width: 100%; height: 100%; overflow: hidden; }
+    /* Ensure the renderer stays inside the graph container and can't cover the sidebar */
+    #graph canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
+    #sidebar { position: relative; z-index: 5; min-width: 420px; border-left: 1px solid #1f2937; background: #111827; padding: 12px; overflow: auto; }
     .title { font-size: 16px; font-weight: 600; margin-bottom: 10px; }
     .meta { font-size: 12px; color: #9ca3af; margin-bottom: 12px; }
     .box { border: 1px solid #1f2937; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #0f172a; }
