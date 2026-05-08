@@ -18,7 +18,7 @@ const (
 	BrightRed = "\033[1;31m"
 )
 
-const banner = BrightRed + `
+const banner = Bold + Blue + `
    ██████╗ ██████╗ ██╗     ██████╗       ██████╗ ███████╗██╗      █████╗ ██╗   ██╗
   ██╔════╝██╔═══██╗██║     ██╔══██╗      ██╔══██╗██╔════╝██║     ██╔══██╗╚██╗ ██╔╝
   ██║     ██║   ██║██║     ██║  ██║█████╗██████╔╝█████╗  ██║     ███████║ ╚████╔╝
@@ -35,6 +35,6 @@ func DisplayBanner(version string) {
 	fmt.Printf("                      -= Active Directory Mapping Engine =-\n")
 	fmt.Printf("                         -= Authorized Use Only =-%s\n", Reset)
 	fmt.Println()
-	fmt.Println(DarkRed + "               [!] Building evidence-driven AD relationship intelligence..." + Reset)
+	fmt.Println(Blue + "               [*] Building evidence-driven AD relationship intelligence..." + Reset)
 	fmt.Println()
 }

@@ -95,7 +95,7 @@ func WriteCSV(path string, results Results) error {
 	defer writer.Flush()
 
 	// Write header
-	header := []string{"SamAccountName", "Type", "Score", "Severity", "Validation", "Reasons", "Evidence", "Blockers", "NextActions", "SPNs", "ExportHashPath"}
+	header := []string{"SamAccountName", "Type", "Severity", "Validation", "Reasons", "Evidence", "Blockers", "NextActions", "SPNs", "ExportHashPath"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -112,7 +112,6 @@ func WriteCSV(path string, results Results) error {
 		record := []string{
 			candidate.SamAccountName,
 			candidate.Type,
-			fmt.Sprintf("%d", candidate.Score),
 			severity,
 			candidate.Validation,
 			reasons,

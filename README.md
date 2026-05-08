@@ -172,7 +172,6 @@ High-level structure:
     {
       "SamAccountName": "Administrator",
       "Type": "HVT",
-      "Score": 90,
       "validation": "validated",
       "evidence": [
         "LDAP group membership marks this principal as privileged."
@@ -354,7 +353,6 @@ CSV output includes:
 
 - `SamAccountName`
 - `Type`
-- `Score`
 - `Severity`
 - `Validation`
 - `Reasons`

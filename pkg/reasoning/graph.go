@@ -231,7 +231,6 @@ func BuildGraph(ctx BuildContext, users []ingest.User, candidates []krb.Candidat
 		findingID := findingID(candidate)
 		b.addNode(findingID, "finding", candidate.Type+" "+candidate.SamAccountName, map[string]interface{}{
 			"type":       candidate.Type,
-			"score":      candidate.Score,
 			"validation": candidate.Validation,
 			"reasons":    candidate.Reasons,
 		})
