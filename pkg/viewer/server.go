@@ -447,6 +447,8 @@ const indexHTML = `<!doctype html>
         n.fx = a.x + (Math.random() * jitter - jitter / 2);
         n.fy = a.y + (Math.random() * jitter - jitter / 2);
         n.fz = zShelf;
+        // Also set the actual z position so depth is visible immediately (some browsers/caches can make fz feel flat).
+        n.z = zShelf;
       });
       graph.graphData(renderData);
     }
@@ -668,6 +670,10 @@ const indexHTML = `<!doctype html>
         renderData = optimizeForRender(fullData.nodes, fullData.links);
         graph.graphData(renderData);
         applyLayout();
+        // Angle the default camera so depth is obvious even before user rotates.
+        try {
+          graph.cameraPosition({ x: 240, y: 160, z: 520 }, { x: 0, y: 0, z: 0 }, 0);
+        } catch (e) {}
         document.getElementById('layoutToggle').addEventListener('change', (e) => { layoutMode = e.target.value; applyLayout(); });
         // cluster titles are overlay-only (not graph nodes)
         const anchors = typeAnchorPositions((data.node_types || []).filter(t => (t || '').toLowerCase() !== 'unknown'));
