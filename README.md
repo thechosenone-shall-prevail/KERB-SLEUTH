@@ -11,6 +11,15 @@ Windows authentication does not fail loudly. It leaves cold traces: stale privil
 
 Cold Relay records those traces.
 
+## Demo
+
+A 3-minute walkthrough of passive and aggressive mode against a HackTheBox Machine — covering enumeration, candidate output, and the attack graph viewer.
+
+
+https://github.com/user-attachments/assets/3189b36f-ada5-4997-a052-feaa7e3e518d
+
+
+
 ## What It Does
 
 - Enumerates Active Directory users, groups, SPNs, account flags, timestamps, descriptions, and operational metadata.
