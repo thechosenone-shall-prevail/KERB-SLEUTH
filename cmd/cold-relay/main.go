@@ -13,8 +13,8 @@ import (
 
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/advanced"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/attack"
-	"github.com/thechosenone-shall-prevail/cold-relay/pkg/cracker"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/controlplane"
+	"github.com/thechosenone-shall-prevail/cold-relay/pkg/cracker"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/ingest"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/krb"
 	"github.com/thechosenone-shall-prevail/cold-relay/pkg/output"
@@ -508,6 +508,15 @@ func writeResults(results output.Results, candidates []krb.Candidate, cfg *triag
 			log.Printf("[x] Failed to write HTML report: %v", err)
 		} else {
 			log.Printf("%s[+] HTML report exported to %s%s", util.Green, reportOut, util.Reset)
+
+			// Auto-generate PDF if HTML was successful
+			pdfPath := strings.TrimSuffix(reportOut, filepath.Ext(reportOut)) + ".pdf"
+			if err := output.WritePDFReport(reportOut, pdfPath); err != nil {
+				log.Printf("[!] PDF generation skipped: %v", err)
+				log.Printf("[!] To enable PDF export, install Chrome/Chromium or wkhtmltopdf")
+			} else {
+				log.Printf("%s[+] PDF report exported to %s%s", util.Green, pdfPath, util.Reset)
+			}
 		}
 	}
 }
