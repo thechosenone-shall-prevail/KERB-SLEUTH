@@ -274,6 +274,7 @@ const indexHTML = `<!doctype html>
     let overlayFrame = 0;
     const graph = ForceGraph3D()(document.getElementById('graph'))
       .backgroundColor('#0b0f16')
+      .numDimensions(3)
       .nodeLabel(n => n.label + ' (' + n.type + ')')
       .nodeColor(n => byTypeColor(n.type))
       .linkColor(() => '#64748b')
@@ -427,29 +428,55 @@ const indexHTML = `<!doctype html>
     function applyLayout() {
       if (!renderData || !renderData.nodes) return;
       if (layoutMode !== 'cluster') {
-        // free layout: unpin nodes
-        renderData.nodes.forEach(n => { delete n.fx; delete n.fy; delete n.fz; });
+        // Free layout: reset to the natural force layout.
+        // (We do not pin nodes in cluster mode anymore, so this is a no-op besides a refresh.)
         graph.graphData(renderData);
         return;
       }
 
-      // clustered layout without d3 dependency: pin nodes near per-type anchors
+      // Clustered layout (non-destructive):
+      // Keep the force-derived shape, but translate each node-type "cloud" towards an anchor.
       const anchors = typeAnchorPositions(payload.node_types || []);
-      const jitter = 18;
       const typeIndex = {};
       (payload.node_types || []).forEach((t, i) => { typeIndex[t] = i; });
+
+      // Snapshot baseline positions once (after first render) to avoid accumulating drift on repeated toggles.
       renderData.nodes.forEach(n => {
-        const a = anchors[n.type];
-        if (!a) return;
-        // Give each type a Z "shelf" so clustered mode stays 3D, not a flat plane.
-        const zi = (typeIndex[n.type] ?? 0) % 3; // 0..2
-        const zShelf = (zi - 1) * 90; // -90, 0, +90
-        n.fx = a.x + (Math.random() * jitter - jitter / 2);
-        n.fy = a.y + (Math.random() * jitter - jitter / 2);
-        n.fz = zShelf;
-        // Also set the actual z position so depth is visible immediately (some browsers/caches can make fz feel flat).
-        n.z = zShelf;
+        if (!n.__basePos) {
+          n.__basePos = { x: n.x || 0, y: n.y || 0, z: n.z || 0 };
+        }
       });
+
+      // Compute per-type centroid from baseline positions.
+      const sums = {};
+      renderData.nodes.forEach(n => {
+        const t = n.type || 'default';
+        const p = n.__basePos;
+        if (!sums[t]) sums[t] = { x: 0, y: 0, z: 0, c: 0 };
+        sums[t].x += p.x; sums[t].y += p.y; sums[t].z += p.z; sums[t].c += 1;
+      });
+      const centroids = {};
+      Object.keys(sums).forEach(t => {
+        centroids[t] = { x: sums[t].x / sums[t].c, y: sums[t].y / sums[t].c, z: sums[t].z / sums[t].c };
+      });
+
+      // Apply translation per type; preserve within-type structure.
+      const translateStrength = 0.75; // 0..1 how strongly we separate clusters
+      renderData.nodes.forEach(n => {
+        const t = n.type || 'default';
+        const a = anchors[t] || { x: 0, y: 0, z: 0 };
+        const c = centroids[t] || { x: 0, y: 0, z: 0 };
+        const zi = (typeIndex[t] ?? 0) % 3; // 0..2
+        const zShelf = (zi - 1) * 90; // -90, 0, +90
+
+        const p = n.__basePos;
+        const dx = (a.x - c.x) * translateStrength;
+        const dy = (a.y - c.y) * translateStrength;
+        n.x = p.x + dx;
+        n.y = p.y + dy;
+        n.z = p.z + zShelf;
+      });
+
       graph.graphData(renderData);
     }
 
