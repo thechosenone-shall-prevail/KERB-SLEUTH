@@ -42,16 +42,16 @@ Passive mode performs protocol discovery, LDAP connection, user enumeration, can
 ./cold-relay -t 10.129.29.229 \
   -u wallace.everette@logging.htb \
   -p 'Welcome2026@' \
-  --mode passive
+  --mode passive --report report.html 
 ```
 
 Aggressive mode adds real Kerberos interactions and advanced AD/SMB analysis.
 
 ```bash
-./cold-relay -t 10.129.29.229 \
+./cold-relay -t 10.129.245.130 \
   -u wallace.everette@logging.htb \
   -p 'Welcome2026@' \
-  --mode aggressive
+  --mode aggressive --report report.html 
 ```
 
 Write JSON, CSV, and Sigma rules:
