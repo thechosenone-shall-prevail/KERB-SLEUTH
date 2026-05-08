@@ -75,6 +75,7 @@ func loadPayload(path string) (GraphPayload, error) {
 	links := make([]GraphLink, 0, len(results.AttackGraph.Edges))
 	nodeTypeSet := make(map[string]bool)
 	edgeTypeSet := make(map[string]bool)
+	nodeByID := make(map[string]bool)
 
 	for _, node := range results.AttackGraph.Nodes {
 		nodes = append(nodes, GraphNode{
@@ -84,6 +85,7 @@ func loadPayload(path string) (GraphPayload, error) {
 			Properties: node.Properties,
 		})
 		nodeTypeSet[firstNonEmpty(node.Type, "unknown")] = true
+		nodeByID[node.ID] = true
 	}
 	for _, edge := range results.AttackGraph.Edges {
 		links = append(links, GraphLink{
@@ -94,6 +96,61 @@ func loadPayload(path string) (GraphPayload, error) {
 			Evidence:   edge.Evidence,
 		})
 		edgeTypeSet[firstNonEmpty(edge.Type, "related_to")] = true
+	}
+
+	// Merge control-plane nodes/edges so ACL rights (GenericWrite/WriteDacl/etc.)
+	// are visible in the viewer, not only in raw JSON.
+	if results.ControlPlane != nil {
+		for _, n := range results.ControlPlane.Nodes {
+			if nodeByID[n.ID] {
+				continue
+			}
+			nodes = append(nodes, GraphNode{
+				ID:    n.ID,
+				Label: firstNonEmpty(n.Name, n.ID),
+				Type:  firstNonEmpty(n.Type, "unknown"),
+				Properties: map[string]interface{}{
+					"source_model": "control_plane",
+				},
+			})
+			nodeTypeSet[firstNonEmpty(n.Type, "unknown")] = true
+			nodeByID[n.ID] = true
+		}
+		for _, e := range results.ControlPlane.Edges {
+			if !nodeByID[e.Source] {
+				nodes = append(nodes, GraphNode{
+					ID:    e.Source,
+					Label: e.Source,
+					Type:  "acl_principal",
+					Properties: map[string]interface{}{
+						"source_model": "control_plane_inferred",
+					},
+				})
+				nodeTypeSet["acl_principal"] = true
+				nodeByID[e.Source] = true
+			}
+			if !nodeByID[e.Target] {
+				nodes = append(nodes, GraphNode{
+					ID:    e.Target,
+					Label: e.Target,
+					Type:  "acl_target",
+					Properties: map[string]interface{}{
+						"source_model": "control_plane_inferred",
+					},
+				})
+				nodeTypeSet["acl_target"] = true
+				nodeByID[e.Target] = true
+			}
+			edgeType := firstNonEmpty(e.Right, "ControlEdge")
+			links = append(links, GraphLink{
+				Source:     e.Source,
+				Target:     e.Target,
+				Type:       edgeType,
+				Validation: firstNonEmpty(string(e.Status), "unknown"),
+				Evidence:   append([]string{}, e.Evidence...),
+			})
+			edgeTypeSet[edgeType] = true
+		}
 	}
 
 	nodeTypes := keysSorted(nodeTypeSet)
@@ -601,6 +658,14 @@ const indexHTML = `<!doctype html>
           lines.push('Why it matters: it summarizes why something is interesting, plus blockers and next actions.');
           lines.push('Next: confirm with direct protocol evidence where required.');
           break;
+        case 'acl_principal':
+          lines.push('This is an ACL trustee principal resolved from nTSecurityDescriptor parsing.');
+          lines.push('Why it matters: rights from this principal may permit direct control actions (for example GenericWrite/WriteDacl).');
+          break;
+        case 'acl_target':
+          lines.push('This is an ACL target object from nTSecurityDescriptor parsing.');
+          lines.push('Why it matters: control rights on this object can create concrete privilege-escalation paths.');
+          break;
         default:
           lines.push('Graph node: ' + label);
           lines.push('Type: ' + (node.type || 'unknown'));
@@ -616,7 +681,13 @@ const indexHTML = `<!doctype html>
       if (typeof props.preauth_not_needed === 'boolean') out.push('Pre-auth not needed: ' + props.preauth_not_needed);
       if (typeof props.spn_count === 'number') out.push('SPN count: ' + props.spn_count);
       connected.forEach(r => {
-        if (r.type && (r.type.includes('can_') || r.type.includes('has_') || r.type.includes('member_of') || r.type.includes('delegat') || r.type.includes('replication'))) {
+        const rt = (r.type || '').toLowerCase();
+        if (r.type && (
+          rt.includes('can_') || rt.includes('has_') || rt.includes('member_of') ||
+          rt.includes('delegat') || rt.includes('replication') ||
+          rt.includes('generic') || rt.includes('write') || rt.includes('dcsync') ||
+          rt.includes('owner') || rt.includes('dacl') || rt.includes('extended')
+        )) {
           out.push(r.type + ' (' + (r.validation || 'n/a') + ')');
         }
       });
