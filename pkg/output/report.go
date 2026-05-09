@@ -535,6 +535,7 @@ const htmlTemplate = `<!DOCTYPE html>
     .likely, .theoretical { color: var(--warn); }
     .blocked, .insufficient_visibility { color: var(--danger); }
     .mono { font-family: Consolas, Monaco, monospace; white-space: pre-wrap; background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 6px; max-height: 420px; overflow: auto; }
+    .json-box { max-height: 260px; overflow: auto; }
     .empty { color: var(--muted); }
     @media print { .container { padding: 10px; } }
   </style>
@@ -663,6 +664,12 @@ const htmlTemplate = `<!DOCTYPE html>
       {{else}}
       <p class="empty">No attack paths generated in this run.</p>
       {{end}}
+    </div>
+
+    <div class="card">
+      <h2>results.json</h2>
+      <p class="empty" style="margin-top:0;">Full raw output (scroll inside this box).</p>
+      <div class="mono json-box">{{.FullJSONOutput}}</div>
     </div>
 
   </div>

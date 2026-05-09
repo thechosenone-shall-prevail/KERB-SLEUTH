@@ -801,7 +801,4 @@ This glossary is maintained as part of the Cold Relay project. If you find terms
 that need clarification or additional terms that should be included, please
 contribute to the project.
 
-Remember: Understanding these terms helps you both secure your environment and
-understand what attackers are looking for. Knowledge is your best defense.
-
 ═══════════════════════════════════════════════════════════════════════════════

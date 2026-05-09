@@ -11,6 +11,15 @@ Windows authentication does not fail loudly. It leaves cold traces: stale privil
 
 Cold Relay records those traces.
 
+## Demo
+
+A 3-minute walkthrough of passive and aggressive mode against a HackTheBox Machine — covering enumeration, candidate output, and the attack graph viewer.
+
+
+https://github.com/user-attachments/assets/3189b36f-ada5-4997-a052-feaa7e3e518d
+
+
+
 ## What It Does
 
 - Enumerates Active Directory users, groups, SPNs, account flags, timestamps, descriptions, and operational metadata.
@@ -42,16 +51,16 @@ Passive mode performs protocol discovery, LDAP connection, user enumeration, can
 ./cold-relay -t 10.129.29.229 \
   -u wallace.everette@logging.htb \
   -p 'Welcome2026@' \
-  --mode passive
+  --mode passive --report report.html 
 ```
 
 Aggressive mode adds real Kerberos interactions and advanced AD/SMB analysis.
 
 ```bash
-./cold-relay -t 10.129.29.229 \
+./cold-relay -t 10.129.245.130 \
   -u wallace.everette@logging.htb \
   -p 'Welcome2026@' \
-  --mode aggressive
+  --mode aggressive --report report.html 
 ```
 
 Write JSON, CSV, and Sigma rules:
