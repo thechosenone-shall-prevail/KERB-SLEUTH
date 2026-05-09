@@ -1,0 +1,807 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    COLD RELAY - TECHNICAL TERMS GLOSSARY
+                    Simple Explanations for Administrators
+═══════════════════════════════════════════════════════════════════════════════
+
+This document explains all technical terms used in Cold Relay in simple language.
+Whether you're a system administrator, security analyst, or IT professional, this
+guide will help you understand what each term means and why it matters.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        CORE ACTIVE DIRECTORY CONCEPTS
+═══════════════════════════════════════════════════════════════════════════════
+
+ACTIVE DIRECTORY (AD)
+    Microsoft's directory service that stores information about users, computers,
+    and other resources in a Windows network. Think of it as a phone book for
+    your entire organization's IT infrastructure.
+
+DOMAIN
+    A logical group of network objects (computers, users, devices) that share
+    the same Active Directory database. Like a neighborhood within a city.
+
+DOMAIN CONTROLLER (DC)
+    A server that responds to authentication requests and verifies users on a
+    network. It's the gatekeeper that checks if you're allowed to access resources.
+
+DISTINGUISHED NAME (DN)
+    The full path to an object in Active Directory. Like a complete mailing address
+    that uniquely identifies where something is located in the directory tree.
+    Example: CN=John Smith,OU=Users,DC=company,DC=com
+
+SAMACCOUNTNAME
+    The logon name used to support older Windows systems. This is typically the
+    username you type when logging in (e.g., "jsmith").
+
+PRINCIPAL
+    Any entity that can be authenticated - a user, computer, or service. Basically,
+    anything that can log in or be verified.
+
+SECURITY IDENTIFIER (SID)
+    A unique ID number assigned to every user, group, and computer account. Like
+    a social security number for Active Directory objects.
+
+ORGANIZATIONAL UNIT (OU)
+    A container within Active Directory used to organize users, groups, and computers.
+    Think of it as folders in a filing cabinet.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        AUTHENTICATION & PROTOCOLS
+═══════════════════════════════════════════════════════════════════════════════
+
+KERBEROS
+    The primary authentication protocol used in Windows networks. It uses "tickets"
+    to prove identity without sending passwords over the network. Named after the
+    three-headed dog from Greek mythology because it has three components.
+
+TICKET-GRANTING TICKET (TGT)
+    A special ticket that proves you've already logged in. You show this to get
+    other tickets for accessing specific services. Like a VIP pass at an event.
+
+TICKET-GRANTING SERVICE (TGS)
+    The service that gives you tickets to access specific resources after you've
+    proven your identity with a TGT.
+
+SERVICE PRINCIPAL NAME (SPN)
+    A unique identifier for a service running on a server. It tells Kerberos which
+    service you want to access. Format: service/hostname (e.g., HTTP/webserver.company.com)
+
+KEY DISTRIBUTION CENTER (KDC)
+    The service that issues Kerberos tickets. Usually runs on the Domain Controller.
+    It's the ticket booth for your network.
+
+AS-REQ (Authentication Service Request)
+    The initial request you send when logging in, asking for a TGT.
+
+AS-REP (Authentication Service Reply)
+    The response containing your TGT after successful authentication.
+
+TGS-REQ (Ticket-Granting Service Request)
+    A request for a service ticket, sent after you have a TGT.
+
+TGS-REP (Ticket-Granting Service Reply)
+    The response containing a service ticket for accessing a specific resource.
+
+NTLM (NT LAN Manager)
+    An older authentication protocol that's less secure than Kerberos but still
+    widely used for backward compatibility. Uses password hashes directly.
+
+LDAP (Lightweight Directory Access Protocol)
+    The protocol used to read and write data to Active Directory. Like SQL for
+    databases, but for directory services. Runs on port 389.
+
+LDAPS (LDAP over SSL/TLS)
+    Encrypted version of LDAP that protects data in transit. Runs on port 636.
+
+STARTTLS
+    A way to upgrade a plain LDAP connection to an encrypted one. Like switching
+    from HTTP to HTTPS mid-conversation.
+
+PKINIT (Public Key Cryptography for Initial Authentication in Kerberos)
+    A method to authenticate using certificates instead of passwords. More secure
+    but requires certificate infrastructure.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ATTACK TECHNIQUES & VULNERABILITIES
+═══════════════════════════════════════════════════════════════════════════════
+
+AS-REP ROASTING
+    An attack where you request authentication for accounts that don't require
+    Kerberos pre-authentication. You get back encrypted data you can crack offline
+    to recover passwords. Works on misconfigured accounts.
+
+KERBEROASTING
+    An attack where you request service tickets for accounts with SPNs, then crack
+    the encrypted portion offline to get passwords. Targets service accounts.
+
+DCSYNC
+    A technique that mimics a Domain Controller to request password data from
+    another DC. If successful, an attacker can dump all password hashes from the
+    domain. Very dangerous.
+
+PASS-THE-HASH
+    Using a stolen password hash to authenticate without knowing the actual password.
+    Like using a key copy without knowing the key code.
+
+PASS-THE-TICKET
+    Using a stolen Kerberos ticket to impersonate a user without their password.
+    Like stealing someone's VIP pass.
+
+GOLDEN TICKET
+    A forged TGT that gives unlimited access to everything in the domain. Created
+    using the KRBTGT account hash. The ultimate skeleton key.
+
+SILVER TICKET
+    A forged service ticket for a specific service. More limited than a Golden
+    Ticket but harder to detect.
+
+OVERPASS-THE-HASH
+    Converting an NTLM hash into a Kerberos ticket. Bridges old and new authentication
+    methods for attacks.
+
+RELAY ATTACK
+    Intercepting authentication attempts and forwarding them to another service
+    to gain unauthorized access. Like a man-in-the-middle for authentication.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        DELEGATION & TRUST
+═══════════════════════════════════════════════════════════════════════════════
+
+DELEGATION
+    Allowing a service to act on behalf of a user when accessing other services.
+    Like giving your assistant permission to sign documents for you.
+
+UNCONSTRAINED DELEGATION
+    A service can impersonate a user to ANY other service. Very powerful and
+    dangerous if compromised. No restrictions on where it can be used.
+
+CONSTRAINED DELEGATION
+    A service can only impersonate users to specific, pre-approved services.
+    More secure than unconstrained. Like a limited power of attorney.
+
+RESOURCE-BASED CONSTRAINED DELEGATION (RBCD)
+    The target resource decides who can delegate to it, rather than the delegating
+    account deciding where it can delegate. Reverses the trust direction.
+
+S4U2SELF (Service for User to Self)
+    Allows a service to obtain a ticket to itself on behalf of any user. Part of
+    constrained delegation. Used when a user authenticates without Kerberos.
+
+S4U2PROXY (Service for User to Proxy)
+    Allows a service to obtain a ticket to another service on behalf of a user.
+    The actual delegation part of constrained delegation.
+
+TRUST
+    A relationship between domains or forests that allows users in one domain to
+    access resources in another. Like a treaty between countries.
+
+FOREST
+    A collection of one or more domain trees that share a common schema and
+    configuration. The top level of Active Directory organization.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        CERTIFICATE SERVICES & PKI
+═══════════════════════════════════════════════════════════════════════════════
+
+AD CS (Active Directory Certificate Services)
+    Microsoft's implementation of a Public Key Infrastructure (PKI). Issues and
+    manages digital certificates for the organization.
+
+CERTIFICATE AUTHORITY (CA)
+    The server that issues digital certificates. Like a passport office for your
+    network.
+
+CERTIFICATE TEMPLATE
+    A blueprint that defines what a certificate can be used for and who can request
+    it. Different templates for different purposes (user auth, code signing, etc.).
+
+SHADOW CREDENTIALS
+    A technique where an attacker adds a certificate to a user's account, allowing
+    authentication without the password. Uses the msDS-KeyCredentialLink attribute.
+
+ESC1-ESC11 (Escalation Techniques 1-11)
+    Specific vulnerabilities in AD CS configurations that can be exploited for
+    privilege escalation. Each number represents a different misconfiguration:
+    
+    ESC1: Template allows low-privileged users to request certificates with
+          dangerous permissions
+    ESC2: Template allows "Any Purpose" usage
+    ESC3: Template allows Certificate Request Agent enrollment
+    ESC4: Template has weak access controls
+    ESC5: Vulnerable PKI object permissions
+    ESC6: EDITF_ATTRIBUTESUBJECTALTNAME2 flag enabled
+    ESC7: Vulnerable CA permissions
+    ESC8: NTLM relay to AD CS HTTP endpoints
+    ESC9: No security extension in certificate
+    ESC10: Weak certificate mapping
+    ESC11: Relay to ICPR (Interface for Certificate Request)
+
+EXTENDED KEY USAGE (EKU)
+    Defines what a certificate can be used for (client authentication, code signing,
+    email protection, etc.). Like permissions for a certificate.
+
+ENROLLMENT RIGHTS
+    Permissions that determine who can request certificates from a template.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ACCESS CONTROL & PERMISSIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+ACCESS CONTROL LIST (ACL)
+    A list of permissions attached to an object that specifies who can do what
+    with it. Like a guest list with different access levels.
+
+ACCESS CONTROL ENTRY (ACE)
+    A single entry in an ACL that grants or denies specific permissions to a
+    specific user or group.
+
+DISCRETIONARY ACCESS CONTROL LIST (DACL)
+    The part of an ACL that specifies who has what access. "Discretionary" means
+    the owner can change it.
+
+NTSECURITYDESCRIPTOR
+    The attribute that stores security information for an object, including the
+    DACL. The complete security package for an AD object.
+
+GENERICALL
+    Permission to do everything with an object - read, write, delete, change
+    permissions. Full control.
+
+GENERICWRITE
+    Permission to write all properties of an object. Can modify most attributes.
+
+WRITEDACL
+    Permission to modify the DACL, meaning you can give yourself more permissions.
+    Very powerful.
+
+WRITEOWNER
+    Permission to change who owns an object. The new owner can then change all
+    permissions.
+
+EXTENDED RIGHTS
+    Special permissions beyond basic read/write, like "Reset Password" or
+    "Replicate Directory Changes". Task-specific permissions.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        SMB & FILE SHARING
+═══════════════════════════════════════════════════════════════════════════════
+
+SMB (Server Message Block)
+    The protocol Windows uses for file sharing, printer sharing, and network
+    communication. Runs on port 445.
+
+SHARE
+    A folder or resource made available over the network via SMB. Can be accessed
+    by remote users.
+
+ADMIN$
+    A hidden administrative share that points to the Windows directory. Only
+    administrators can access it. Indicates admin rights if accessible.
+
+C$
+    A hidden administrative share that points to the C: drive. Only administrators
+    can access it.
+
+IPC$
+    A hidden share used for inter-process communication. Used for named pipes and
+    remote procedure calls.
+
+SYSVOL
+    A shared folder on Domain Controllers that stores Group Policy files and
+    logon scripts. Replicated across all DCs.
+
+NETLOGON
+    A share used for logon scripts and domain authentication. Found on Domain
+    Controllers.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        GROUP POLICY & MANAGEMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+GROUP POLICY OBJECT (GPO)
+    A collection of settings that control the working environment of users and
+    computers. Like company-wide rules applied automatically.
+
+GROUP POLICY PREFERENCES (GPP)
+    Extended Group Policy settings that can configure things like mapped drives,
+    scheduled tasks, and local users. Historically had a password storage vulnerability.
+
+CPASSWORD
+    An encrypted password stored in Group Policy Preferences XML files. The
+    encryption key was published by Microsoft, making these passwords easily
+    decryptable. A major security issue.
+
+GPLINK
+    The connection between a GPO and an Organizational Unit. Determines which
+    policies apply where.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        SPECIAL ACCOUNTS & ATTRIBUTES
+═══════════════════════════════════════════════════════════════════════════════
+
+KRBTGT
+    The account used by the Key Distribution Center to encrypt and sign Kerberos
+    tickets. Compromising this account allows Golden Ticket attacks.
+
+LAPS (Local Administrator Password Solution)
+    A Microsoft tool that automatically manages and rotates local administrator
+    passwords on domain-joined computers. Stores passwords in AD.
+
+GMSA (Group Managed Service Account)
+    A special account type for services that automatically manages passwords.
+    More secure than regular service accounts.
+
+MSDS-ALLOWEDTOACTONBEHALFOFOTHERIDENTITY
+    The attribute that controls Resource-Based Constrained Delegation. Specifies
+    which accounts can impersonate users to this resource.
+
+MSDS-KEYCREDENTIALLINK
+    The attribute used for storing certificate information for passwordless
+    authentication (Windows Hello, FIDO2). Can be abused for Shadow Credentials.
+
+USERACCOUNTCONTROL
+    A flag field that stores various account properties like "account disabled",
+    "password never expires", "trusted for delegation", etc.
+
+PWDLASTSET
+    Timestamp of when the password was last changed. Used to identify stale passwords.
+
+LASTLOGON
+    Timestamp of the last successful login. Not replicated between DCs, so each
+    DC has its own value.
+
+LASTLOGONTIMESTAMP
+    Similar to lastLogon but replicated between DCs. Updated less frequently
+    (typically 9-14 days) to reduce replication traffic.
+
+ADMINCOUNT
+    A flag that indicates an account is or was a member of a privileged group.
+    Once set, it often stays set even after privilege removal.
+
+SERVICEPRINCIPALNAME (SPN)
+    An attribute that registers services for Kerberos authentication. Accounts
+    with SPNs are targets for Kerberoasting.
+
+MEMBEROF
+    Lists all groups an account belongs to. Used to determine permissions and access.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        NETWORK & DISCOVERY
+═══════════════════════════════════════════════════════════════════════════════
+
+DNS (Domain Name System)
+    Translates human-readable names (like server.company.com) into IP addresses.
+    Critical for Active Directory operation.
+
+ZONE TRANSFER (AXFR)
+    A DNS operation that copies all records from one DNS server to another.
+    If misconfigured, attackers can enumerate all network hosts.
+
+GLOBAL CATALOG (GC)
+    A distributed data repository that contains a searchable, partial representation
+    of every object in every domain in a forest. Runs on port 3268 (3269 for SSL).
+
+ADWS (Active Directory Web Services)
+    A web service interface for managing Active Directory. Runs on port 9389.
+    Used by PowerShell AD cmdlets.
+
+KPASSWD
+    The Kerberos password change service. Runs on port 464.
+
+RPC (Remote Procedure Call)
+    A protocol that allows programs to execute code on remote systems. Runs on
+    port 135 and dynamic ports. Used extensively by Windows.
+
+WINRM (Windows Remote Management)
+    Microsoft's implementation of WS-Management protocol for remote management.
+    Runs on port 5985 (HTTP) and 5986 (HTTPS).
+
+RDP (Remote Desktop Protocol)
+    Protocol for remote graphical access to Windows systems. Runs on port 3389.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        SECURITY CONCEPTS
+═══════════════════════════════════════════════════════════════════════════════
+
+PRIVILEGE ESCALATION
+    Gaining higher-level permissions than originally granted. Moving from regular
+    user to administrator.
+
+LATERAL MOVEMENT
+    Moving from one compromised system to another within a network. Spreading
+    access horizontally.
+
+PERSISTENCE
+    Maintaining access to a system even after reboots or password changes. Ensuring
+    you can get back in.
+
+RECONNAISSANCE (RECON)
+    The information gathering phase of an attack. Learning about the target
+    environment.
+
+ENUMERATION
+    Systematically listing users, groups, shares, and other resources. More
+    detailed than reconnaissance.
+
+CREDENTIAL HARVESTING
+    Collecting usernames and passwords from various sources. Building a credential
+    database.
+
+PASSWORD SPRAYING
+    Trying a few common passwords against many accounts. Opposite of brute force
+    (many passwords against one account). Helps avoid account lockouts.
+
+BRUTE FORCE
+    Trying many passwords against one account until finding the right one. Often
+    triggers account lockouts.
+
+HASH CRACKING
+    Using computational power to reverse password hashes back into plaintext
+    passwords. Can be done offline.
+
+RAINBOW TABLE
+    A precomputed table of password hashes used to speed up hash cracking. Trade
+    storage space for computation time.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ENCRYPTION & HASHING
+═══════════════════════════════════════════════════════════════════════════════
+
+HASH
+    A one-way mathematical function that converts data into a fixed-size string.
+    Cannot be reversed (theoretically). Used to store passwords securely.
+
+NTLM HASH
+    The hash format used by Windows for storing passwords. Format: MD4(UTF-16-LE(password))
+    Relatively weak by modern standards.
+
+RC4
+    An encryption algorithm used in Kerberos (encryption type 23). Considered
+    weak and deprecated but still widely supported.
+
+AES (Advanced Encryption Standard)
+    Modern encryption algorithm used in Kerberos (types 17 and 18 for AES128 and
+    AES256). Much stronger than RC4.
+
+DES (Data Encryption Standard)
+    Old encryption algorithm (Kerberos type 3). Considered broken and should not
+    be used.
+
+SALT
+    Random data added to passwords before hashing to prevent rainbow table attacks.
+    Makes each hash unique even for identical passwords.
+
+ENCRYPTION TYPE (ETYPE)
+    Specifies which encryption algorithm is used in Kerberos. Common values:
+    - 1: DES-CBC-CRC (deprecated)
+    - 3: DES-CBC-MD5 (deprecated)
+    - 17: AES128-CTS-HMAC-SHA1-96
+    - 18: AES256-CTS-HMAC-SHA1-96
+    - 23: RC4-HMAC (arcfour-hmac-md5)
+
+═══════════════════════════════════════════════════════════════════════════════
+                        BLOODHOUND & ATTACK GRAPHS
+═══════════════════════════════════════════════════════════════════════════════
+
+BLOODHOUND
+    A tool that maps Active Directory relationships and finds attack paths. Uses
+    graph theory to identify how to reach high-value targets.
+
+ATTACK GRAPH
+    A visual representation of how an attacker could move through a network from
+    their current position to their goal. Shows the path of least resistance.
+
+ATTACK PATH
+    A specific sequence of steps an attacker could take to compromise a target.
+    Like directions from point A to point B.
+
+NODE
+    A point in a graph representing an entity (user, computer, group, etc.).
+
+EDGE
+    A connection between nodes representing a relationship or permission. Shows
+    how one object can affect another.
+
+HIGH-VALUE TARGET (HVT)
+    An account or system that has significant privileges or access. Usually
+    administrators or critical servers.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        VALIDATION & RISK ASSESSMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+VALIDATED
+    A finding that was directly confirmed through testing. Highest confidence level.
+
+LIKELY
+    Strong evidence exists but not all conditions were verified. High confidence
+    but not certain.
+
+THEORETICAL
+    Configuration suggests a vulnerability but exploitability wasn't proven. Possible
+    but unconfirmed.
+
+BLOCKED
+    An attempt was made but failed due to security controls or lack of permissions.
+    Indicates good security.
+
+INSUFFICIENT_VISIBILITY
+    Not enough information was collected to make a determination. More data needed.
+
+EXPLOITABILITY SCORE
+    A numerical rating (0-100) indicating how easy it would be to exploit a
+    vulnerability. Higher is worse.
+
+RISK LEVEL
+    A categorical rating (Low/Medium/High/Critical) indicating the severity of
+    a finding.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        TOOL MODES & OPERATIONS
+═══════════════════════════════════════════════════════════════════════════════
+
+PASSIVE MODE
+    Enumeration and analysis only. No active attacks or exploitation attempts.
+    Safer and less likely to trigger alerts.
+
+AGGRESSIVE MODE
+    Full testing including active attacks like hash extraction and exploitation
+    attempts. More thorough but more detectable.
+
+AUDIT MODE
+    Read-only analysis that doesn't make changes. Used for compliance checking
+    and security assessments.
+
+DRY RUN
+    Simulates actions without actually performing them. Shows what would happen
+    without making changes.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        COMMON ATTACK SCENARIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+TIMEROASTING
+    Exploiting accounts with very long Kerberos ticket lifetimes to crack passwords
+    offline with more time.
+
+PRINTER BUG
+    A vulnerability in the Windows Print Spooler that can be used to coerce
+    authentication from a target system.
+
+PETITPOTAM
+    A vulnerability in Windows EFS (Encrypting File System) that can coerce NTLM
+    authentication, useful for relay attacks.
+
+ZEROLOGON
+    A critical vulnerability (CVE-2020-1472) in the Netlogon protocol that allows
+    taking over a Domain Controller.
+
+NOPAC
+    A vulnerability (CVE-2021-42278 and CVE-2021-42287) that allows privilege
+    escalation by manipulating computer account names.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        DEFENSIVE CONCEPTS
+═══════════════════════════════════════════════════════════════════════════════
+
+LEAST PRIVILEGE
+    Giving users only the minimum permissions they need to do their job. Reduces
+    attack surface.
+
+DEFENSE IN DEPTH
+    Using multiple layers of security controls. If one fails, others still protect.
+
+SECURITY MONITORING
+    Continuously watching for suspicious activity. Early detection of attacks.
+
+SIEM (Security Information and Event Management)
+    A system that collects and analyzes security logs from across the network.
+    Central security monitoring.
+
+SIGMA RULES
+    A generic signature format for SIEM systems. Allows sharing detection rules
+    across different platforms.
+
+HONEYPOT
+    A decoy system designed to attract and detect attackers. Looks valuable but
+    is actually a trap.
+
+CANARY TOKEN
+    A piece of data that triggers an alert when accessed. Used to detect unauthorized
+    access.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        MISCELLANEOUS TERMS
+═══════════════════════════════════════════════════════════════════════════════
+
+ROOTDSE
+    The root of the directory tree. Contains information about the directory
+    server's capabilities and configuration.
+
+BASE DN
+    The starting point for LDAP searches. Usually the domain name in DN format
+    (DC=company,DC=com).
+
+SEARCH FILTER
+    An LDAP query that specifies which objects to return. Uses a special syntax
+    like (objectClass=user).
+
+PAGED RESULTS
+    Breaking large LDAP queries into smaller chunks to avoid overwhelming the
+    server or client.
+
+FUNCTIONAL LEVEL
+    Indicates which Windows Server version features are available in the domain
+    or forest. Higher levels have more features but require newer DCs.
+
+SCHEMA
+    The blueprint that defines what types of objects and attributes can exist in
+    Active Directory. Like a database schema.
+
+REPLICATION
+    The process of copying Active Directory changes between Domain Controllers.
+    Keeps all DCs synchronized.
+
+TOMBSTONE
+    A marker left when an object is deleted. Allows the deletion to replicate
+    before the object is permanently removed.
+
+GARBAGE COLLECTION
+    The process of permanently removing tombstoned objects after a certain period
+    (default 180 days).
+
+FSMO ROLES (Flexible Single Master Operations)
+    Five special roles that can only be held by one DC at a time:
+    - Schema Master: Controls schema changes
+    - Domain Naming Master: Controls domain creation/deletion
+    - RID Master: Allocates unique ID pools
+    - PDC Emulator: Time sync, password changes, legacy support
+    - Infrastructure Master: Updates cross-domain references
+
+═══════════════════════════════════════════════════════════════════════════════
+                        UNDERSTANDING COLD RELAY OUTPUT
+═══════════════════════════════════════════════════════════════════════════════
+
+CANDIDATE
+    An account or object identified as potentially vulnerable or interesting.
+    Requires further investigation.
+
+EVIDENCE
+    Specific observations that support a finding. Facts collected during enumeration.
+
+BLOCKER
+    A security control or missing condition that prevents exploitation. Shows
+    what's protecting you.
+
+NEXT ACTIONS
+    Recommended steps for further investigation or exploitation. What to do next.
+
+CONTROL PLANE
+    A normalized view of permissions and relationships. Shows who can do what in
+    a standardized format.
+
+COVERAGE GAP
+    An area where Cold Relay couldn't collect enough information. Indicates blind
+    spots.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        QUICK REFERENCE: COMMON PORTS
+═══════════════════════════════════════════════════════════════════════════════
+
+53    - DNS
+88    - Kerberos
+135   - RPC
+139   - NetBIOS Session Service
+389   - LDAP
+445   - SMB
+464   - Kerberos Password Change
+636   - LDAPS
+3268  - Global Catalog
+3269  - Global Catalog SSL
+3389  - RDP
+5985  - WinRM HTTP
+5986  - WinRM HTTPS
+9389  - ADWS
+
+═══════════════════════════════════════════════════════════════════════════════
+                        QUICK REFERENCE: WELL-KNOWN SIDS
+═══════════════════════════════════════════════════════════════════════════════
+
+S-1-5-18          - Local System
+S-1-5-19          - Local Service
+S-1-5-20          - Network Service
+S-1-5-21-*-500    - Domain Administrator
+S-1-5-21-*-501    - Domain Guest
+S-1-5-21-*-502    - KRBTGT
+S-1-5-21-*-512    - Domain Admins
+S-1-5-21-*-513    - Domain Users
+S-1-5-21-*-514    - Domain Guests
+S-1-5-21-*-515    - Domain Computers
+S-1-5-21-*-516    - Domain Controllers
+S-1-5-21-*-517    - Cert Publishers
+S-1-5-21-*-518    - Schema Admins
+S-1-5-21-*-519    - Enterprise Admins
+S-1-5-21-*-520    - Group Policy Creator Owners
+S-1-5-32-544      - Local Administrators
+S-1-5-32-545      - Local Users
+S-1-5-32-546      - Local Guests
+S-1-5-32-547      - Power Users
+S-1-5-32-548      - Account Operators
+S-1-5-32-549      - Server Operators
+S-1-5-32-550      - Print Operators
+S-1-5-32-551      - Backup Operators
+S-1-5-32-552      - Replicators
+
+═══════════════════════════════════════════════════════════════════════════════
+                        TIPS FOR ADMINISTRATORS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. UNDERSTAND YOUR BASELINE
+   Know what's normal in your environment before running security tools. This
+   helps you identify what's actually a problem versus expected configuration.
+
+2. START WITH PASSIVE MODE
+   Always run Cold Relay in passive mode first. It's safer and helps you
+   understand what will be tested before running aggressive checks.
+
+3. READ THE VALIDATION STATUS
+   Pay attention to whether findings are "validated", "likely", or "theoretical".
+   Focus on validated findings first as they're confirmed issues.
+
+4. CHECK THE BLOCKERS
+   Blockers tell you what security controls are working. If something is blocked,
+   that's good news - your defenses are working.
+
+5. PRIORITIZE HIGH-VALUE TARGETS
+   Focus on protecting accounts marked as HVT (High-Value Targets) like Domain
+   Admins and service accounts with elevated privileges.
+
+6. REVIEW DELEGATION CAREFULLY
+   Delegation is powerful but dangerous. Regularly audit who has delegation rights
+   and ensure they're necessary and appropriate.
+
+7. MONITOR FOR KERBEROASTING
+   Accounts with SPNs are always at risk. Use strong passwords for service accounts
+   and consider using Group Managed Service Accounts (gMSA).
+
+8. PATCH CERTIFICATE SERVICES
+   AD CS vulnerabilities (ESC1-ESC11) are commonly exploited. Regularly review
+   certificate templates and CA configurations.
+
+9. DISABLE UNUSED PROTOCOLS
+   If you don't need NTLM, disable it. If you don't need RC4, disable it. Reduce
+   your attack surface by turning off legacy protocols.
+
+10. IMPLEMENT MONITORING
+    Use the SIEM rules generated by Cold Relay to detect attacks in real-time.
+    Detection is your last line of defense.
+
+═══════════════════════════════════════════════════════════════════════════════
+                        ADDITIONAL RESOURCES
+═══════════════════════════════════════════════════════════════════════════════
+
+For more information about Active Directory security:
+
+- Microsoft Active Directory Security Documentation
+- MITRE ATT&CK Framework (Credential Access, Lateral Movement tactics)
+- SpecterOps Blog (BloodHound creators, excellent AD security content)
+- HarmJ0y's Blog (Will Schroeder, AD security researcher)
+- Sean Metcalf's ADSecurity.org
+
+For understanding specific attacks:
+
+- Kerberoasting: https://attack.mitre.org/techniques/T1558/003/
+- AS-REP Roasting: https://attack.mitre.org/techniques/T1558/004/
+- DCSync: https://attack.mitre.org/techniques/T1003/006/
+- Golden Ticket: https://attack.mitre.org/techniques/T1558/001/
+
+═══════════════════════════════════════════════════════════════════════════════
+
+This glossary is maintained as part of the Cold Relay project. If you find terms
+that need clarification or additional terms that should be included, please
+contribute to the project.
+
+Remember: Understanding these terms helps you both secure your environment and
+understand what attackers are looking for. Knowledge is your best defense.
+
+═══════════════════════════════════════════════════════════════════════════════
